@@ -45,7 +45,7 @@ case "$1" in
     echo "$pkgName linked"
     ;;
 
-  "version")
+  "--version"|"-v")
     echo "udots V${VERSION}"
     ;;
 
