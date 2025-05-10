@@ -2,7 +2,7 @@
 
 CONFIG="$HOME/.config/udots/"
 REPO="$HOME/git/termux-cfg"
-VERSION="0.2"
+VERSION="0.3"
 
 checkDir () {
   if [[ ! -d "$1" ]]; then
@@ -17,13 +17,17 @@ fullPath () {
   # Remove ending /
   fullTarget="$(echo $1 | sed 's|/$||')"
 
-  if [[ "$fullTarget" =~ "/" ]]; then
-    # Split last item and path
-    IFS=" " read -d "" -r dirName target <<< "${fullTarget%\/*} ${fullTarget##*\/}"
-    echo "$(cd "$dirName"; pwd)/$target"
+  if [[ -d "$fullTarget" ]]; then
+    if [[ "$fullTarget" =~ "/" ]]; then
+      # Split last item and path
+      IFS=" " read -d "" -r dirName target <<< "${fullTarget%\/*} ${fullTarget##*\/}"
+      echo "$(cd "$dirName"; pwd)/$target"
+    else
+      dirName="$fullTarget"
+      echo "$(cd "$dirName"; pwd)"
+    fi
   else
-    dirName="$fullTarget"
-    echo "$(cd "$dirName"; pwd)"
+    echo "$(pwd)"
   fi
 
 }
@@ -31,26 +35,36 @@ fullPath () {
 case "$1" in
   "--add"|"-a")
     pkgName="$2"
-    pkgPath="$(fullPath "$3")"
+    rawPath="$3"
+    pkgPath="$(fullPath "$rawPath")"
     
     lastPathItem="${pkgPath##*\/}"
-    newPath="$(echo "$pkgPath" | sed "s|^$HOME/||;s|/$lastPathItem$||")"
+    newPath="$(echo "$pkgPath" | sed "s|^$HOME/\?||;s|/$lastPathItem$||")"
 
     mkdir -p "$REPO/$pkgName/$newPath"
 
-    mv "$pkgPath" "$REPO/$pkgName/$newPath"
-    echo "$pkgName added"
+    mv "$rawPath" "$REPO/$pkgName/$newPath"
 
     stow -d "$REPO" -t "$HOME" "$pkgName"
-    echo "$pkgName linked"
+
+    # =========================================
+    # DEBUGGING ONLY
+    # =========================================
+    #echo "Config Directory: $CONFIG"
+    #echo "Repo Directory: $REPO"
+    #echo "Package Name: $pkgName"
+    #echo "Package Path: $pkgPath"
+    #echo "Last Path Item: $lastPathItem"
+    #echo "New Path: $newPath"
+    #echo "Moved to: $REPO/$pkgName/$newPath"
+    # =========================================
     ;;
 
   "--version"|"-v")
-    echo "udots V${VERSION}"
+    echo "udots Version ${VERSION}"
     ;;
 
   *)
     stow -d "$REPO" -t "$HOME" "$1"
-    echo "$pkgName linked"
     ;;
 esac
