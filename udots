@@ -2,7 +2,7 @@
 
 CONFIG="$HOME/.config/udots/"
 REPO="$HOME/git/termux-cfg"
-VERSION="0.1"
+VERSION="0.2"
 
 checkDir () {
   if [[ ! -d "$1" ]]; then
@@ -17,21 +17,30 @@ fullPath () {
   # Remove ending /
   fullTarget="$(echo $1 | sed 's|/$||')"
 
-  # Split last item and path
-  IFS=" " read -d "" -r dirName target <<< "${fullTarget%\/*} ${fullTarget##*\/}"
+  if [[ "$fullTarget" =~ "/" ]]; then
+    # Split last item and path
+    IFS=" " read -d "" -r dirName target <<< "${fullTarget%\/*} ${fullTarget##*\/}"
+    echo "$(cd "$dirName"; pwd)/$target"
+  else
+    dirName="$fullTarget"
+    echo "$(cd "$dirName"; pwd)"
+  fi
 
-  echo "$(cd "$dirName"; pwd)/$target"
 }
 
 case "$1" in
   "--add"|"-a")
     pkgName="$2"
     pkgPath="$(fullPath "$3")"
+    
     lastPathItem="${pkgPath##*\/}"
     newPath="$(echo "$pkgPath" | sed "s|^$HOME/||;s|/$lastPathItem$||")"
+
     mkdir -p "$REPO/$pkgName/$newPath"
+
     mv "$pkgPath" "$REPO/$pkgName/$newPath"
     echo "$pkgName added"
+
     stow -d "$REPO" -t "$HOME" "$pkgName"
     echo "$pkgName linked"
     ;;
@@ -45,5 +54,3 @@ case "$1" in
     echo "$pkgName linked"
     ;;
 esac
-
-# udots -a nvim ~/.config/nvim
