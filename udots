@@ -73,31 +73,44 @@ case "$1" in
 
     for target in "${targets[@]}"; do
       if [[ ! -e "$target" ]]; then
-        echo "[ERR] $target: No such file or directory"
+        echo "[ERR] '$target': No such file or directory"
         exit 1
       fi
+
       targetPath="$(fullPath "$target")" 
       targetItem="${targetPath##*\/}"
+      
+      if [[ -h "$target" ]]; then
+        echo "Cannot add '$targetItem' as it is a symlink."
+        continue
+      fi
 
       tmpPath="${targetPath/$HOME\//}"
       newPath="${tmpPath/%\/$targetItem/}"
+      
+      # Check if file already exists within the package
+      if [[ -e "$REPO/$pkgName/$newPath/$targetItem" ]]; then
+        echo "'$targetItem' already exists within '$pkgName'"
+        continue
+      fi
 
       mkdir -p "$REPO/$pkgName/$newPath"
       
       if [[ $? -eq 0 ]]; then
-        echo "Created: $pkgName"
+        echo "Created: '$pkgName'"
       fi
+
 
       mv "$targetPath" "$REPO/$pkgName/$newPath"
       
       if [[ $? -eq 0 ]]; then
-        echo "Added $targetItem to $pkgName"
+        echo "Added '$targetItem' to '$pkgName'"
       fi
 
       stow -d "$REPO" -t "$HOME" "$pkgName"
       
       if [[ $? -eq 0 ]]; then
-        echo "Linked: $pkgName"
+        echo "Linked: '$pkgName'"
       fi
 
       # =========================================
