@@ -65,6 +65,10 @@ case "$1" in
     ls -1 "$REPO" --ignore "LICENSE"
     ;;
 
+  "--delink"|"-d")
+    stow -d "$REPO" -t "$HOME" -D "$2"
+    ;;
+
   "--version"|"-v")
     echo "udots Version ${VERSION}"
     ;;
