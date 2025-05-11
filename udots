@@ -61,6 +61,10 @@ case "$1" in
     done
     ;;
 
+  "--list"|"-l")
+    ls -1 "$REPO" --ignore "LICENSE"
+    ;;
+
   "--version"|"-v")
     echo "udots Version ${VERSION}"
     ;;
