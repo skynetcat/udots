@@ -27,7 +27,10 @@ OPTIONS:
     in the dotfiles repo
   
   -d, --delink [PKGNAME]
-    Remove links pointing towards files in [PKGNAME]
+    Remove links pointing to files in [PKGNAME]
+  
+  -e, --erase [PKGNAME]
+    Remove [PKGNAME] completely from the repo
   
   -l, --list
     List files in the dotfiles repo
@@ -140,6 +143,33 @@ case "$1" in
         else
           echo -e "\nAvailable packages:"
           ls -1 "$REPO" --ignore "LICENSE"
+        fi
+      else
+        echo "[ERR] Please specify the package name"
+      fi
+    fi
+    ;;
+
+  "--erase"|"-e")
+    pkgName="$2"
+    if [[ $# -gt 2 ]]; then
+      echo "[ERR] Too many arguments"
+    else
+      if [[ -n "$pkgName" ]]; then
+        if [[ ! -d "$REPO/$pkgName" ]]; then
+          echo "[ERR] '$pkgName' does not exist"
+          echo -e "\nAvailable packages:"
+          ls -1 "$REPO" --ignore "LICENSE"
+          exit 1
+        fi
+
+        read -rp "Are you ABSLOUTELY sure you want to ERASE '$pkgName'?(y/N) " eraseAnswer
+
+        if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
+          rm -rf "$REPO/$pkgName"
+          echo "Erased: '$pkgName'"
+        else
+          echo "Nothing was deleted"
         fi
       else
         echo "[ERR] Please specify the package name"
