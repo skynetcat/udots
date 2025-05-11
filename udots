@@ -13,6 +13,33 @@ checkDir () {
 checkDir "$CONFIG"
 checkDir "$REPO"
 
+
+printHelp () {
+  cat <<HELPPAGE
+Description:
+  A bash wrapper for gnu stow to manage dotfiles.
+
+Usage: udots [OPTION] [FILE(S)]
+
+OPTIONS:
+  -a, --add [PKGNAME] [FILE(S)]
+    Adds a file or multiple files to [PKGNAME] 
+    in the dotfiles repo
+  
+  -d, --delink [PKGNAME]
+    Remove links pointing towards files in [PKGNAME]
+  
+  -l, --list
+    List files in the dotfiles repo
+
+  -h, --help
+    Print this help message
+
+  -v, --version
+    Prints script version
+HELPPAGE
+}
+
 fullPath () {
   # Remove ending /
   currentTarget="${1/%\//}"
@@ -60,13 +87,17 @@ case "$1" in
       # =========================================
     done
     ;;
+  
+  "--delink"|"-d")
+    stow -d "$REPO" -t "$HOME" -D "$2"
+    ;;
 
   "--list"|"-l")
     ls -1 "$REPO" --ignore "LICENSE"
     ;;
 
-  "--delink"|"-d")
-    stow -d "$REPO" -t "$HOME" -D "$2"
+  "--help"|"-h")
+    printHelp
     ;;
 
   "--version"|"-v")
