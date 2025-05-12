@@ -2,7 +2,7 @@
 
 CONFIG="$HOME/.config/udots/"
 REPO="$HOME/git/termux-cfg"
-VERSION="0.5.0"
+VERSION="0.5.2"
 
 checkDir () { [[ ! -d "$1" ]] && mkdir -p "$1"; }
 checkDir "$CONFIG"
