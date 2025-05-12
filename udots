@@ -133,7 +133,12 @@ case "$1" in
       }
 
       tmpPath="${targetPath/$HOME\//}"
-      newPath="${tmpPath/%\/$targetItem/}"
+
+      if [[ "$tmpPath" != "$targetItem" ]]; then
+        newPath="${tmpPath/%\/$targetItem/}"
+      else
+        newPath=""
+      fi
       
       # Check if file already exists within the package
       [[ -e "$REPO/$pkgName/$newPath/$targetItem" ]] && {
@@ -158,6 +163,7 @@ case "$1" in
       #echo "Package Name: $pkgName"
       #echo "Target Path: $targetPath"
       #echo "Target Item: $targetItem"
+      #echo "TMP Path: $tmpPath"
       #echo "New Path: $newPath"
       #echo "Moved to: $REPO/$pkgName/$newPath"
       #echo -e "# =========================================\n"
