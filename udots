@@ -59,7 +59,7 @@ err () {
 
   paint fg red "[ERR] $msg"
   [[ "$1" =~ ^(noPkg|noPkgExist)$ ]] && listItems
-  exit 1
+  [[ "$1" != "noTargetExist" ]] && exit 1
 }
 
 
@@ -110,12 +110,26 @@ fullPath () {
 
 stowLink () {
   stow -d "$REPO" -t "$HOME" "$1" ${@:2}
-  [[ $? -eq 0 ]] && paint fg cyan "Linked:" " $1" || listItems
+  
+  [[ $? -eq 0 ]] && {
+    paint fg cyan "Linked:" " $1"
+    return 0
+  }
+  
+  listItems
+  exit 1
 }
 
 stowDelink () {
   stow -d "$REPO" -t "$HOME" -D "$1" ${@:2}
-  [[ $? -eq 0 ]] && paint fg purple "Unlinked:" " $1" || listItems
+  
+  [[ $? -eq 0 ]] && {
+    paint fg purple "Unlinked:" " $1" 
+    return 0
+  }
+
+  listItems
+  exit 1
 }
 
 case "$1" in
@@ -125,9 +139,17 @@ case "$1" in
     
     targets=("${@:3}")
     [[ ${#targets[@]} -eq 0 ]] && { err noTarget ; }
+      
+    [[ ! -d "$REPO/$pkgName" ]] && {
+      mkdir -p "$REPO/$pkgName"
+      [[ $? -eq 0 ]] && paint fg green "Created Package:" " '$pkgName'" || exit 1
+    }
 
     for target in "${targets[@]}"; do
-      [[ ! -e "$target" ]] && err noTargetExist "$target" 
+      [[ ! -e "$target" ]] && {
+        err noTargetExist "$target"
+        continue
+      }
 
       targetPath="$(fullPath "$target")" 
       targetItem="${targetPath##*\/}"
@@ -147,10 +169,7 @@ case "$1" in
         continue
       }
 
-      [[ ! -d "$REPO/$pkgName/$newPath" ]] && {
-        mkdir -p "$REPO/$pkgName/$newPath"
-        [[ $? -eq 0 ]] && paint fg green "Created Package:" " '$pkgName'"
-      }
+      mkdir -p "$REPO/$pkgName/$newPath"
 
       mv "$targetPath" "$REPO/$pkgName/$newPath"
       [[ $? -eq 0 ]] && paint fg green "Added:" " '$targetItem' => '$pkgName'"
@@ -177,12 +196,6 @@ case "$1" in
     done
     ;;
   
-  "--delink"|"-d")
-    [[ -z "$2" ]] && err noPkg
-
-    stowDelink "$2" "${@:3}"
-    ;;
-
   "--erase"|"-e")
     [[ $# -gt 2 ]] && err manyArg
 
@@ -207,9 +220,13 @@ case "$1" in
   "--version"|"-v") echo "udots Version ${VERSION}" ;;
   -*) err invalid ;;
 
+  "--delink"|"-d")
+    [[ -z "$2" ]] && err noPkg
+    stowDelink "$2" "${@:3}"
+    ;;
+
   *)
     [[ -z "$1" ]] && err noPkg
-
     stowLink "$1" ${@:2}
     ;;
 esac
