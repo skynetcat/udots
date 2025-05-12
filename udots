@@ -109,12 +109,12 @@ fullPath () {
 }
 
 stowLink () {
-  stow -d "$REPO" -t "$HOME" "$1"
+  stow -d "$REPO" -t "$HOME" "$1" ${@:2}
   [[ $? -eq 0 ]] && paint fg cyan "Linked:" " $1" || listItems
 }
 
 stowDelink () {
-  stow -d "$REPO" -t "$HOME" -D "$1"
+  stow -d "$REPO" -t "$HOME" -D "$1" ${@:2}
   [[ $? -eq 0 ]] && paint fg purple "Unlinked:" " $1" || listItems
 }
 
@@ -139,48 +139,48 @@ case "$1" in
 
       tmpPath="${targetPath/$HOME\//}"
 
-      if [[ "$tmpPath" != "$targetItem" ]]; then
-        newPath="${tmpPath/%\/$targetItem/}"
-      else
-        newPath=""
-      fi
+      [[ "$tmpPath" != "$targetItem" ]] && newPath="${tmpPath/%\/$targetItem/}"
       
       # Check if file already exists within the package
-      [[ -e "$REPO/$pkgName/$newPath/$targetItem" ]] && {
+      [[ -e "$REPO/$pkgName/${newPath:-}${targetItem}" ]] && {
         paint fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
         continue
       }
 
-      mkdir -p "$REPO/$pkgName/$newPath"
-      [[ $? -eq 0 ]] && paint fg green "Created Package:" " '$pkgName'"
+      [[ ! -d "$REPO/$pkgName/$newPath" ]] && {
+        mkdir -p "$REPO/$pkgName/$newPath"
+        [[ $? -eq 0 ]] && paint fg green "Created Package:" " '$pkgName'"
+      }
 
       mv "$targetPath" "$REPO/$pkgName/$newPath"
       [[ $? -eq 0 ]] && paint fg green "Added:" " '$targetItem' => '$pkgName'"
 
       stowLink "$pkgName"
 
-      # =========================================
-      # DEBUGGING ONLY
-      # =========================================
-      #echo "# ========================================="
-      #echo "Config Directory: $CONFIG"
-      #echo "Repo Directory: $REPO"
-      #echo "Package Name: $pkgName"
-      #echo "Target Path: $targetPath"
-      #echo "Target Item: $targetItem"
-      #echo "TMP Path: $tmpPath"
-      #echo "New Path: $newPath"
-      #echo "Moved to: $REPO/$pkgName/$newPath"
-      #echo -e "# =========================================\n"
-      # =========================================
+# =========================================
+# DEBUGGING ONLY
+# =========================================
+#      cat <<EODEBUG
+## =========================================
+#Config Directory: $CONFIG
+#Repo Directory: $REPO
+#Package Name: $pkgName
+#Target Path: $targetPath
+#Target Item: $targetItem
+#TMP Path: $tmpPath
+#New Path: $newPath
+#Moved to: $REPO/$pkgName/$newPath
+## =========================================
+#
+#EODEBUG
+# =========================================
     done
     ;;
   
   "--delink"|"-d")
-    [[ $# -gt 2 ]] && err manyArg
     [[ -z "$2" ]] && err noPkg
 
-    stowDelink "$2"
+    stowDelink "$2" "${@:3}"
     ;;
 
   "--erase"|"-e")
@@ -208,9 +208,8 @@ case "$1" in
   -*) err invalid ;;
 
   *)
-    [[ $# -gt 1 ]] && err manyArg
     [[ -z "$1" ]] && err noPkg
 
-    stowLink "$1"
+    stowLink "$1" ${@:2}
     ;;
 esac
