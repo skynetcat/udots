@@ -1,4 +1,4 @@
 <div align="center">
-![Micro Dots Logo](images/logo.png)
-# Micro Dots
+    <img width="200" src="images/logo.png" alt="Micro Dots Logo">
 </div>
+<p align="center">Micro Dots</p>
