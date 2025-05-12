@@ -2,16 +2,65 @@
 
 CONFIG="$HOME/.config/udots/"
 REPO="$HOME/git/termux-cfg"
-VERSION="0.4.0"
+VERSION="0.5.0"
 
-checkDir () {
-  if [[ ! -d "$1" ]]; then
-    mkdir -p "$1"
-  fi
-}
-
+checkDir () { [[ ! -d "$1" ]] && mkdir -p "$1"; }
 checkDir "$CONFIG"
 checkDir "$REPO"
+
+paint () {
+  local output="$1"
+  local color="$2"
+  local message="$3"
+  local rawMessage="$4"
+  local resetSeq="\001\033[0m\002"
+
+  case "$output" in
+    fg) : "3" ;;
+    bg) : "4" ;;
+    *) echo "ERROR: '$output' is an unknown color output" ;;
+  esac
+  local output="$_"
+  
+  case $color in
+    black)  : 0 ;;
+    red)    : 1 ;;
+    green)  : 2 ;;
+    yellow) : 3 ;;
+    blue)   : 4 ;;
+    purple) : 5 ;;
+    cyan)   : 6 ;;
+    white)  : 7 ;;
+    *) echo "ERROR: '$color' is an unknown color" ;;
+  esac
+  local color="$_"
+
+  echo -e "\x01\033[${output}${color}m\x02${message}${resetSeq}${rawMessage}"
+}
+
+
+listItems () { 
+  echo -e "\nAvailable packages:"
+  ls -1 "$REPO" --ignore "LICENSE"
+}
+
+err () {
+  case "$1" in
+    "noPkg")      : "Please specify the package name" ;;
+    "noPkgExist") : "Package '$2' does not exist" ;;
+    "noTargetExist") : "'$2': No such file or directory" ;;
+    "noTarget")   : "Please specify at least a file to add to the package" ;;
+    "manyArg")    : "Too many arguments" ;;
+    "invalid")    : "Invalid option" ;;
+    *)            : "Unknown" ;;
+  esac
+  
+  msg="$_"
+
+  paint fg red "[ERR] $msg"
+  [[ "$1" =~ ^(noPkg|noPkgExist)$ ]] && listItems
+  exit 1
+}
 
 
 printHelp () {
@@ -45,7 +94,7 @@ HELPPAGE
 
 fullPath () {
   # Remove ending /
-  currentTarget="${1/%\//}"
+  local currentTarget="${1/%\//}"
 
   # If target is a path
   if [[ "$currentTarget" =~ "/" ]]; then
@@ -59,62 +108,46 @@ fullPath () {
   fi
 }
 
+stowLink () {
+  stow -d "$REPO" -t "$HOME" "$1"
+  [[ $? -eq 0 ]] && paint fg cyan "Linked:" " $1" || listItems
+}
+
 case "$1" in
   "--add"|"-a")
     pkgName="$2"
+    [[ -z "$pkgName" ]] && { err noPkg ; }
+    
     targets=("${@:3}")
-
-    if [[ -z "$pkgName" ]]; then
-      echo "[ERR] Please specify a package name"
-      exit 1
-    fi
-
-    if [[ ${#targets[@]} -eq 0 ]]; then
-      echo "[ERR] Please specify at least a file to add to the package"
-      exit 1
-    fi
+    [[ ${#targets[@]} -eq 0 ]] && { err noTarget ; }
 
     for target in "${targets[@]}"; do
-      if [[ ! -e "$target" ]]; then
-        echo "[ERR] '$target': No such file or directory"
-        exit 1
-      fi
+      [[ ! -e "$target" ]] && err noTargetExist "$target" 
 
       targetPath="$(fullPath "$target")" 
       targetItem="${targetPath##*\/}"
       
-      if [[ -h "$target" ]]; then
-        echo "Cannot add '$targetItem' as it is a symlink."
+      [[ -h "$target" ]] && {
+        paint fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
         continue
-      fi
+      }
 
       tmpPath="${targetPath/$HOME\//}"
       newPath="${tmpPath/%\/$targetItem/}"
       
       # Check if file already exists within the package
-      if [[ -e "$REPO/$pkgName/$newPath/$targetItem" ]]; then
-        echo "'$targetItem' already exists within '$pkgName'"
+      [[ -e "$REPO/$pkgName/$newPath/$targetItem" ]] && {
+        paint fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
         continue
-      fi
+      }
 
       mkdir -p "$REPO/$pkgName/$newPath"
-      
-      if [[ $? -eq 0 ]]; then
-        echo "Created: '$pkgName'"
-      fi
-
+      [[ $? -eq 0 ]] && paint fg green "Created Package:" " '$pkgName'"
 
       mv "$targetPath" "$REPO/$pkgName/$newPath"
-      
-      if [[ $? -eq 0 ]]; then
-        echo "Added '$targetItem' to '$pkgName'"
-      fi
+      [[ $? -eq 0 ]] && paint fg green "Added:" " '$targetItem' => '$pkgName'"
 
-      stow -d "$REPO" -t "$HOME" "$pkgName"
-      
-      if [[ $? -eq 0 ]]; then
-        echo "Linked: '$pkgName'"
-      fi
+      stowLink "$pkgName"
 
       # =========================================
       # DEBUGGING ONLY
@@ -133,77 +166,40 @@ case "$1" in
     ;;
   
   "--delink"|"-d")
-    if [[ $# -gt 2 ]]; then
-      echo "[ERR] Too many arguments"
-    else
-      if [[ -n "$2" ]]; then
-        stow -d "$REPO" -t "$HOME" -D "$2"
-        if [[ $? -eq 0 ]]; then
-          echo "Unlinked: $2"
-        else
-          echo -e "\nAvailable packages:"
-          ls -1 "$REPO" --ignore "LICENSE"
-        fi
-      else
-        echo "[ERR] Please specify the package name"
-      fi
-    fi
+    [[ $# -gt 2 ]] && err manyArg
+    [[ -z "$2" ]] && err noPkg
+
+    stow -d "$REPO" -t "$HOME" -D "$2"
+    [[ $? -eq 0 ]] && paint fg purple "Unlinked:" " $2" || listItems
     ;;
 
   "--erase"|"-e")
+    [[ $# -gt 2 ]] && err manyArg
+
     pkgName="$2"
-    if [[ $# -gt 2 ]]; then
-      echo "[ERR] Too many arguments"
+    [[ -z "$pkgName" ]] && err noPkg
+
+    [[ ! -d "$REPO/$pkgName" ]] && err noPkgExist "$pkgName"
+
+    read -rp "Are you ABSLOUTELY sure you want to ERASE '$pkgName'?(y/N) " eraseAnswer
+
+    if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
+      rm -rf "$REPO/$pkgName"
+      paint fg purple "\nErased:" " $pkgName"
     else
-      if [[ -n "$pkgName" ]]; then
-        if [[ ! -d "$REPO/$pkgName" ]]; then
-          echo "[ERR] '$pkgName' does not exist"
-          echo -e "\nAvailable packages:"
-          ls -1 "$REPO" --ignore "LICENSE"
-          exit 1
-        fi
-
-        read -rp "Are you ABSLOUTELY sure you want to ERASE '$pkgName'?(y/N) " eraseAnswer
-
-        if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
-          rm -rf "$REPO/$pkgName"
-          echo "Erased: '$pkgName'"
-        else
-          echo "Nothing was deleted"
-        fi
-      else
-        echo "[ERR] Please specify the package name"
-      fi
+      echo -e "\nNothing was deleted"
     fi
     ;;
 
-  "--list"|"-l")
-    ls -1 "$REPO" --ignore "LICENSE"
-    ;;
-
-  "--help"|"-h")
-    printHelp
-    ;;
-
-  "--version"|"-v")
-    echo "udots Version ${VERSION}"
-    ;;
+  "--list"|"-l") listItems ;;
+  "--help"|"-h") printHelp ;;
+  "--version"|"-v") echo "udots Version ${VERSION}" ;;
+  -*) err invalid ;;
 
   *)
-    if [[ $# -gt 1 ]]; then
-      echo "[ERR] Too many arguments"
-    else
-      if [[ -n "$1" ]]; then
-        stow -d "$REPO" -t "$HOME" "$1"
-        if [[ $? -eq 0 ]]; then
-          echo "Linked: $1"
-        else
-          echo -e "\nAvailable packages:"
-          ls -1 "$REPO" --ignore "LICENSE"
-        fi
-      else
-        echo "[ERR] Please specify the package name"
-      fi
-    fi
+    [[ $# -gt 1 ]] && err manyArg
+    [[ -z "$1" ]] && err noPkg
+
+    stowLink "$1"
     ;;
 esac
