@@ -19,7 +19,7 @@ printHelp () {
 Description:
   A bash wrapper for gnu stow to manage dotfiles.
 
-Usage: udots [OPTION] [FILE(S)]
+Usage: udots [OPTION]
 
 OPTIONS:
   -a, --add [PKGNAME] [FILE(S)]
@@ -68,7 +68,7 @@ err () {
 
   paint fg red "[ERR] $msg"
   [[ "$1" =~ ^(noPkg|noPkgExist)$ ]] && listItems
-  [[ "$1" != "noTargetExist" ]] && exit 1
+  [[ ! "$1" =~ ^(noTargetExist|invalid)$ ]] && exit 1
 }
 
 stowLink () {
@@ -191,7 +191,11 @@ case "$1" in
   "--list"|"-l") listItems ;;
   "--help"|"-h") printHelp ;;
   "--version"|"-v") echo "udots Version ${VERSION}" ;;
-  -*) err invalid ;;
+  -*) 
+    err invalid
+    echo ""
+    printHelp
+    ;;
 
   "--delink"|"-d")
     [[ -z "$2" ]] && err noPkg
