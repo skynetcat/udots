@@ -1,68 +1,19 @@
 #!/usr/bin/env bash
 
+source "$HOME/.local/lib/umacros"
+
 CONFIG="$HOME/.config/udots/"
 REPO="$HOME/git/termux-cfg"
 VERSION="0.5.2"
 
-checkDir () { [[ ! -d "$1" ]] && mkdir -p "$1"; }
 checkDir "$CONFIG"
 checkDir "$REPO"
 
-paint () {
-  local output="$1"
-  local color="$2"
-  local message="$3"
-  local rawMessage="$4"
-  local resetSeq="\001\033[0m\002"
-
-  case "$output" in
-    fg) : "3" ;;
-    bg) : "4" ;;
-    *) echo "ERROR: '$output' is an unknown color output" ;;
-  esac
-  local output="$_"
-  
-  case $color in
-    black)  : 0 ;;
-    red)    : 1 ;;
-    green)  : 2 ;;
-    yellow) : 3 ;;
-    blue)   : 4 ;;
-    purple) : 5 ;;
-    cyan)   : 6 ;;
-    white)  : 7 ;;
-    *) echo "ERROR: '$color' is an unknown color" ;;
-  esac
-  local color="$_"
-
-  echo -e "\x01\033[${output}${color}m\x02${message}${resetSeq}${rawMessage}"
-}
 
 
-listItems () { 
-  echo -e "\nAvailable packages:"
-  ls -1 "$REPO" --ignore "LICENSE"
-}
-
-err () {
-  case "$1" in
-    "noPkg")      : "Please specify the package name" ;;
-    "noPkgExist") : "Package '$2' does not exist" ;;
-    "noTargetExist") : "'$2': No such file or directory" ;;
-    "noTarget")   : "Please specify at least a file to add to the package" ;;
-    "manyArg")    : "Too many arguments" ;;
-    "invalid")    : "Invalid option" ;;
-    *)            : "Unknown" ;;
-  esac
-  
-  msg="$_"
-
-  paint fg red "[ERR] $msg"
-  [[ "$1" =~ ^(noPkg|noPkgExist)$ ]] && listItems
-  [[ "$1" != "noTargetExist" ]] && exit 1
-}
-
-
+# =====================================================
+# Help Page
+# =====================================================
 printHelp () {
   cat <<HELPPAGE
 Description:
@@ -92,20 +43,32 @@ OPTIONS:
 HELPPAGE
 }
 
-fullPath () {
-  # Remove ending /
-  local currentTarget="${1/%\//}"
 
-  # If target is a path
-  if [[ "$currentTarget" =~ "/" ]]; then
-    # Split last item and path
-    IFS=" " read -d "" -r dirName lastItem <<< "${currentTarget%\/*} ${currentTarget##*\/}"
 
-    echo "$(cd "$dirName"; pwd)/$lastItem"
-  else
-    # Append current dir to the item
-    echo "$PWD/$currentTarget"
-  fi
+# =====================================================
+# Functions
+# =====================================================
+listItems () { 
+  echo -e "\nAvailable packages:"
+  ls -1 "$REPO" --ignore "LICENSE"
+}
+
+err () {
+  case "$1" in
+    "noPkg")      : "Please specify the package name" ;;
+    "noPkgExist") : "Package '$2' does not exist" ;;
+    "noTargetExist") : "'$2': No such file or directory" ;;
+    "noTarget")   : "Please specify at least a file to add to the package" ;;
+    "manyArg")    : "Too many arguments" ;;
+    "invalid")    : "Invalid option" ;;
+    *)            : "Unknown" ;;
+  esac
+  
+  msg="$_"
+
+  paint fg red "[ERR] $msg"
+  [[ "$1" =~ ^(noPkg|noPkgExist)$ ]] && listItems
+  [[ "$1" != "noTargetExist" ]] && exit 1
 }
 
 stowLink () {
@@ -132,6 +95,11 @@ stowDelink () {
   exit 1
 }
 
+
+
+# =====================================================
+# Argument Processing
+# =====================================================
 case "$1" in
   "--add"|"-a")
     pkgName="$2"
@@ -140,30 +108,35 @@ case "$1" in
     targets=("${@:3}")
     [[ ${#targets[@]} -eq 0 ]] && { err noTarget ; }
       
-    [[ ! -d "$REPO/$pkgName" ]] && {
-      mkdir -p "$REPO/$pkgName"
-      [[ $? -eq 0 ]] && paint fg green "Created Package:" " '$pkgName'" || exit 1
-    }
+    # If package dir does not exist within the repo, create it
+    checkDir "$REPO/$pkgName"
+    [[ $? -eq 0 ]] && paint fg green "Created Package:" " '$pkgName'" || exit 1
 
+    # =============================
+    # Process list of targets
+    # =============================
     for target in "${targets[@]}"; do
+      # if target doesn't exist, skip it
       [[ ! -e "$target" ]] && {
         err noTargetExist "$target"
         continue
       }
-
-      targetPath="$(fullPath "$target")" 
-      targetItem="${targetPath##*\/}"
       
+      # If target is a link, skip it
       [[ -h "$target" ]] && {
         paint fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
         continue
       }
 
+      targetPath="$(fullPath "$target")" 
+      targetItem="${targetPath##*\/}"
+
       tmpPath="${targetPath/$HOME\//}"
 
+      # If it isn't a direct target inside the home directory, create a path inside the package
       [[ "$tmpPath" != "$targetItem" ]] && newPath="${tmpPath/%\/$targetItem/}"
       
-      # Check if file already exists within the package
+      # Skip if the target already exists within the package
       [[ -e "$REPO/$pkgName/${newPath:-}${targetItem}" ]] && {
         paint fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
         continue

@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+# =====================================================
+# If directory does not exist, create it.
+# =====================================================
+checkDir () { [[ ! -d "$1" ]] && mkdir -p "$1"; }
+
+
+
+# =====================================================
+# Print colored string along with optional non-colored
+# =====================================================
+paint () {
+  local output="$1"
+  local color="$2"
+  local message="$3"
+  local rawMessage="$4"
+  local resetSeq="\001\033[0m\002"
+
+  case "$output" in
+    fg) : "3" ;;
+    bg) : "4" ;;
+    *) echo "ERROR: '$output' is an unknown color output" ;;
+  esac
+  local output="$_"
+  
+  case $color in
+    black)  : 0 ;;
+    red)    : 1 ;;
+    green)  : 2 ;;
+    yellow) : 3 ;;
+    blue)   : 4 ;;
+    purple) : 5 ;;
+    cyan)   : 6 ;;
+    white)  : 7 ;;
+    *) echo "ERROR: '$color' is an unknown color" ;;
+  esac
+  local color="$_"
+
+  echo -e "\x01\033[${output}${color}m\x02${message}${resetSeq}${rawMessage}"
+}
+
+
+
+# =====================================================
+# Get full path of supplied relative directory
+# =====================================================
+fullPath () {
+  # Remove ending /
+  local currentTarget="${1/%\//}"
+
+  # If target is a path
+  if [[ "$currentTarget" =~ "/" ]]; then
+    # Split last item and path
+    IFS=" " read -d "" -r dirName lastItem <<< "${currentTarget%\/*} ${currentTarget##*\/}"
+
+    echo "$(cd "$dirName"; pwd)/$lastItem"
+  else
+    # Append current dir to the item
+    echo "$PWD/$currentTarget"
+  fi
+}
