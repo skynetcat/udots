@@ -113,6 +113,11 @@ stowLink () {
   [[ $? -eq 0 ]] && paint fg cyan "Linked:" " $1" || listItems
 }
 
+stowDelink () {
+  stow -d "$REPO" -t "$HOME" -D "$1"
+  [[ $? -eq 0 ]] && paint fg purple "Unlinked:" " $1" || listItems
+}
+
 case "$1" in
   "--add"|"-a")
     pkgName="$2"
@@ -175,8 +180,7 @@ case "$1" in
     [[ $# -gt 2 ]] && err manyArg
     [[ -z "$2" ]] && err noPkg
 
-    stow -d "$REPO" -t "$HOME" -D "$2"
-    [[ $? -eq 0 ]] && paint fg purple "Unlinked:" " $2" || listItems
+    stowDelink "$2"
     ;;
 
   "--erase"|"-e")
@@ -187,11 +191,12 @@ case "$1" in
 
     [[ ! -d "$REPO/$pkgName" ]] && err noPkgExist "$pkgName"
 
-    read -rp "Are you ABSLOUTELY sure you want to ERASE '$pkgName'?(y/N) " eraseAnswer
+    read -rp "Are you ABSLOUTELY sure you want to ERASE '$pkgName'? (y/N) " eraseAnswer
 
     if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
+      stowDelink "$pkgName"
       rm -rf "$REPO/$pkgName"
-      paint fg purple "\nErased:" " $pkgName"
+      paint fg purple "Erased:" " $pkgName"
     else
       echo -e "\nNothing was deleted"
     fi
