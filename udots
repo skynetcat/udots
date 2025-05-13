@@ -191,15 +191,16 @@ case "$1" in
   "--list"|"-l") listItems ;;
   "--help"|"-h") printHelp ;;
   "--version"|"-v") echo "udots Version ${VERSION}" ;;
-  -*) 
-    err invalid
-    echo ""
-    printHelp
-    ;;
 
   "--delink"|"-d")
     [[ -z "$2" ]] && err noPkg
     stowDelink "$2" "${@:3}"
+    ;;
+
+  -*) 
+    err invalid
+    echo ""
+    printHelp
     ;;
 
   *)
