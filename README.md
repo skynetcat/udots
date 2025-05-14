@@ -3,6 +3,8 @@
 </div>
 <p align="center">Micro Dots</p>
 
-# Acknowledgements
+# Installation
+
+# Special thanks
 1. [Pure Bash Bible](https://github.com/dylanaraps/pure-bash-bible) helped me a lot.
 2. Logo is created by ChatGPT.

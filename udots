@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 source "$HOME/.local/lib/umacros"
+# source "$CONFIG"
 
 CONFIG="$HOME/.config/udots/"
 REPO="$HOME/git/termux-cfg"
