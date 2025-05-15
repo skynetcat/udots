@@ -49,4 +49,4 @@ OPTIONS:
 2. Logo is created by ChatGPT.
 
 # Support
-[![Support me on ko-fi](images/ko-fi.png)](https://ko-fi.com/skynetcat)
+<a href="https://ko-fi.com/skynetcat"><img width="200" src="images/ko-fi.png" alt="Support me on ko-fi"></a>
