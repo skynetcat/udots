@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 
+VERSION="0.6.0"
+CONFIG="$HOME/.config/udots"
+
+# Dependency error
+depError () {
+  [[ $? -ne 0 ]] && {
+    echo "[DEPENDENCY FAILURE] $1 does not exist"
+    exit 1
+  }
+}
+
+# Source config first then umacros
+source "$CONFIG/config"
+depError "$CONFIG/config"
+
 source "$HOME/.local/lib/umacros"
-# source "$CONFIG"
-
-CONFIG="$HOME/.config/udots/"
-REPO="$HOME/git/termux-cfg"
-VERSION="0.5.2"
-
-checkDir "$CONFIG"
-checkDir "$REPO"
+depError "$HOME/.local/lib/umacros"
 
 
 
@@ -23,6 +31,9 @@ Description:
 Usage: udots [OPTION]
 
 OPTIONS:
+  -i, --install [PKGNAME]
+    Install [PKGNAME]
+
   -a, --add [PKGNAME] [FILE(S)]
     Adds a file or multiple files to [PKGNAME] 
     in the dotfiles repo
@@ -51,7 +62,8 @@ HELPPAGE
 # =====================================================
 listItems () { 
   echo -e "\nAvailable packages:"
-  ls -1 "$REPO" --ignore "LICENSE"
+  [[ $COLOR -eq 0 ]] && lscolor="never"
+  ls -1 "$REPO" --color="${lscolor:-always}" --ignore "LICENSE"
 }
 
 err () {
@@ -61,6 +73,7 @@ err () {
     "noTargetExist") : "'$2': No such file or directory" ;;
     "noTarget")   : "Please specify at least a file to add to the package" ;;
     "manyArg")    : "Too many arguments" ;;
+    "noArg")      : "No arguments provided" ;;
     "invalid")    : "Invalid option" ;;
     *)            : "Unknown" ;;
   esac
@@ -198,6 +211,11 @@ case "$1" in
     stowDelink "$2" "${@:3}"
     ;;
 
+  "--install"|"-i")
+    [[ -z "$1" ]] && err noPkg
+    stowLink "$1" ${@:2}
+    ;;
+
   -*) 
     err invalid
     echo ""
@@ -205,7 +223,7 @@ case "$1" in
     ;;
 
   *)
-    [[ -z "$1" ]] && err noPkg
-    stowLink "$1" ${@:2}
+    printHelp
+    err noArg
     ;;
 esac

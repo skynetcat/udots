@@ -16,6 +16,11 @@ paint () {
   local message="$3"
   local rawMessage="$4"
   local resetSeq="\001\033[0m\002"
+  
+  [[ $COLOR -eq 0 ]] && {
+    echo "${message}${rawMessage}"
+    return
+  }
 
   case "$output" in
     fg) : "3" ;;
