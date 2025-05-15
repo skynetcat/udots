@@ -31,7 +31,7 @@ OPTIONS:
   -d, --delink [PKGNAME]
     Remove links pointing to files in [PKGNAME]
   
-  -e, --erase [PKGNAME]
+  -z, --erase [PKGNAME]
     Remove [PKGNAME] completely from the repo
   
   -l, --list

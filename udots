@@ -41,8 +41,11 @@ OPTIONS:
   -d, --delink [PKGNAME]
     Remove links pointing to files in [PKGNAME]
   
-  -e, --erase [PKGNAME]
+  -z, --erase [PKGNAME]
     Remove [PKGNAME] completely from the repo
+
+  -e, --empty [PKGNAME]
+    Return everything in [PKGNAME] to where it was
   
   -l, --list
     List files in the dotfiles repo
@@ -60,6 +63,15 @@ HELPPAGE
 # =====================================================
 # Functions
 # =====================================================
+paintMsg () {
+  [[ $COLOR -eq 0 ]] && {
+    echo "${3}${4}"
+    return
+  }
+
+  paint "$1" "$2" "$3" "$4"
+}
+
 listItems () { 
   echo -e "\nAvailable packages:"
   [[ $COLOR -eq 0 ]] && lscolor="never"
@@ -80,7 +92,7 @@ err () {
   
   msg="$_"
 
-  paint fg red "[ERR] $msg"
+  paintMsg fg red "[ERR] $msg"
   [[ "$1" =~ ^(noPkg|noPkgExist)$ ]] && listItems
   [[ ! "$1" =~ ^(noTargetExist|invalid)$ ]] && exit 1
 }
@@ -89,7 +101,7 @@ stowLink () {
   stow -d "$REPO" -t "$HOME" "$1" ${@:2}
   
   [[ $? -eq 0 ]] && {
-    paint fg cyan "Linked:" " $1"
+    paintMsg fg cyan "[Linked]" " $1"
     return 0
   }
   
@@ -101,7 +113,7 @@ stowDelink () {
   stow -d "$REPO" -t "$HOME" -D "$1" ${@:2}
   
   [[ $? -eq 0 ]] && {
-    paint fg purple "Unlinked:" " $1" 
+    paintMsg fg purple "[Unlinked]" " $1" 
     return 0
   }
 
@@ -124,12 +136,18 @@ case "$1" in
       
     # If package dir does not exist within the repo, create it
     checkDir "$REPO/$pkgName"
-    [[ $? -eq 0 ]] && paint fg green "Created Package:" " '$pkgName'" || exit 1
+    [[ $? -eq 0 ]] && paintMsg fg green "[New PKG]" " '$pkgName'"
 
     # =============================
     # Process list of targets
     # =============================
     for target in "${targets[@]}"; do
+
+      targetPath="$(fullPath "$target")" 
+      targetItem="${targetPath##*\/}"
+
+      tmpPath="${targetPath/$HOME\//}"
+
       # if target doesn't exist, skip it
       [[ ! -e "$target" ]] && {
         err noTargetExist "$target"
@@ -138,30 +156,25 @@ case "$1" in
       
       # If target is a link, skip it
       [[ -h "$target" ]] && {
-        paint fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
+        paintMsg fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
         continue
       }
 
-      targetPath="$(fullPath "$target")" 
-      targetItem="${targetPath##*\/}"
-
-      tmpPath="${targetPath/$HOME\//}"
 
       # If it isn't a direct target inside the home directory, create a path inside the package
       [[ "$tmpPath" != "$targetItem" ]] && newPath="${tmpPath/%\/$targetItem/}"
       
       # Skip if the target already exists within the package
       [[ -e "$REPO/$pkgName/${newPath:-}${targetItem}" ]] && {
-        paint fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
+        paintMsg fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
         continue
       }
 
       mkdir -p "$REPO/$pkgName/$newPath"
 
       mv "$targetPath" "$REPO/$pkgName/$newPath"
-      [[ $? -eq 0 ]] && paint fg green "Added:" " '$targetItem' => '$pkgName'"
+      [[ $? -eq 0 ]] && paintMsg fg green "[Added]" " '$targetItem'"
 
-      stowLink "$pkgName"
 
 # =========================================
 # DEBUGGING ONLY
@@ -181,9 +194,11 @@ case "$1" in
 #EODEBUG
 # =========================================
     done
+    
+    stowLink "$pkgName"
     ;;
   
-  "--erase"|"-e")
+  "--erase"|"-z")
     [[ $# -gt 2 ]] && err manyArg
 
     pkgName="$2"
@@ -196,10 +211,19 @@ case "$1" in
     if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
       stowDelink "$pkgName"
       rm -rf "$REPO/$pkgName"
-      paint fg purple "Erased:" " $pkgName"
+      paintMsg fg purple "[Erased]" " $pkgName"
     else
       echo -e "\nNothing was deleted"
     fi
+    ;;
+
+  "--empty"|"-e")
+    [[ $# -gt 2 ]] && err manyArg
+
+    pkgName="$2"
+    [[ -z "$pkgName" ]] && err noPkg
+
+    [[ ! -d "$REPO/$pkgName" ]] && err noPkgExist "$pkgName"
     ;;
 
   "--list"|"-l") listItems ;;
@@ -212,8 +236,8 @@ case "$1" in
     ;;
 
   "--install"|"-i")
-    [[ -z "$1" ]] && err noPkg
-    stowLink "$1" ${@:2}
+    [[ -z "$2" ]] && err noPkg
+    stowLink "$2" ${@:3}
     ;;
 
   -*) 
@@ -224,6 +248,7 @@ case "$1" in
 
   *)
     printHelp
+    echo ""
     err noArg
     ;;
 esac
