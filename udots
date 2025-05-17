@@ -75,7 +75,9 @@ paintMsg () {
 listItems () { 
   echo -e "\nAvailable packages:"
   [[ $COLOR -eq 0 ]] && lscolor="never"
-  ls -1 "$REPO" --color="${lscolor:-always}" --ignore "LICENSE"
+  ls -1 -d "$REPO/"*/ --color="${lscolor:-always}" |\
+    sed "s|$REPO/||g; s|/||g" |\
+    nl -w3 -s " "
 }
 
 err () {
