@@ -28,7 +28,11 @@ printHelp () {
 Description:
   A bash wrapper for gnu stow to manage dotfiles.
 
-Usage: udots [OPTION]
+Usage: udots [CONFIG] [OPTION]
+
+CONFIG:
+  --adopt
+    Use stow with --adopt
 
 OPTIONS:
   -i, --install [PKGNAME]
@@ -44,9 +48,6 @@ OPTIONS:
   -z, --erase [PKGNAME]
     Remove [PKGNAME] completely from the repo
 
-  -e, --empty [PKGNAME]
-    Return everything in [PKGNAME] to where it was
-  
   -l, --list
     List files in the dotfiles repo
 
@@ -57,6 +58,14 @@ OPTIONS:
     Prints script version
 HELPPAGE
 }
+
+# If help is 1st or last option, print help then exit
+if [[ "${@: -1}" =~ ^(-h|--help)$ ]] ||\
+   [[ "${1}" =~ ^(-h|--help)$ ]]; then
+  printHelp
+  exit
+fi
+
 
 
 
@@ -82,6 +91,7 @@ listItems () {
 
 err () {
   case "$1" in
+    "noAddPkg")   : "Please specify a package name" ;;
     "noPkg")      : "Please specify the package name" ;;
     "noPkgExist") : "Package '$2' does not exist" ;;
     "noTargetExist") : "'$2': No such file or directory" ;;
@@ -128,129 +138,133 @@ stowDelink () {
 # =====================================================
 # Argument Processing
 # =====================================================
-case "$1" in
-  "--add"|"-a")
-    pkgName="$2"
-    [[ -z "$pkgName" ]] && { err noPkg ; }
+
+# Store all arguments in allArgs array
+IFS=$'\n' read -d "" -ra allArgs <<< "$(sed -E "s/(-|--)/\n\1/g" <<< "${@}")"
+
+# Expand each item into an array
+for arg in "${allArgs[@]}"; do
+  IFS=$'\n' read -d "" -ra currentArg <<< "${arg// /$'\n'}"
+  case "$1" in
+    "--adopt"|"-ad")
+      stowAdopt=1
+      ;;
+
+    "--add"|"-a")
+      pkgName="$2"
+      [[ -z "$pkgName" ]] && { err noAddPkg ; }
+      
+      targets=("${@:3}")
+      [[ ${#targets[@]} -eq 0 ]] && { err noTarget ; }
+        
+      # If package dir does not exist within the repo, create it
+      checkDir "$REPO/$pkgName"
+      [[ $? -eq 0 ]] && paintMsg fg green "[New PKG]" " '$pkgName'"
+
+      # =============================
+      # Process list of targets
+      # =============================
+      for target in "${targets[@]}"; do
+
+        targetPath="$(fullPath "$target")" 
+        targetItem="${targetPath##*\/}"
+
+        tmpPath="${targetPath/$HOME\//}"
+
+        # if target doesn't exist, skip it
+        [[ ! -e "$target" ]] && {
+          err noTargetExist "$target"
+          continue
+        }
+        
+        # If target is a link, skip it
+        [[ -h "$target" ]] && {
+          paintMsg fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
+          continue
+        }
+
+
+        # If it isn't a direct target inside the home directory, create a path inside the package
+        [[ "$tmpPath" != "$targetItem" ]] && newPath="${tmpPath/%\/$targetItem/}"
+        
+        # Skip if the target already exists within the package
+        [[ -e "$REPO/$pkgName/${newPath:-}${targetItem}" ]] && {
+          paintMsg fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
+          continue
+        }
+
+        mkdir -p "$REPO/$pkgName/$newPath"
+
+        mv "$targetPath" "$REPO/$pkgName/$newPath"
+        [[ $? -eq 0 ]] && paintMsg fg green "[Added]" " '$targetItem'"
+
+
+  # =========================================
+  # DEBUGGING ONLY
+  # =========================================
+  #      cat <<EODEBUG
+  ## =========================================
+  #Config Directory: $CONFIG
+  #Repo Directory: $REPO
+  #Package Name: $pkgName
+  #Target Path: $targetPath
+  #Target Item: $targetItem
+  #TMP Path: $tmpPath
+  #New Path: $newPath
+  #Moved to: $REPO/$pkgName/$newPath
+  ## =========================================
+  #
+  #EODEBUG
+  # =========================================
+      done
+      
+      stowLink "$pkgName"
+      ;;
     
-    targets=("${@:3}")
-    [[ ${#targets[@]} -eq 0 ]] && { err noTarget ; }
-      
-    # If package dir does not exist within the repo, create it
-    checkDir "$REPO/$pkgName"
-    [[ $? -eq 0 ]] && paintMsg fg green "[New PKG]" " '$pkgName'"
+    "--erase"|"-z")
+      [[ $# -gt 2 ]] && err manyArg
 
-    # =============================
-    # Process list of targets
-    # =============================
-    for target in "${targets[@]}"; do
+      pkgName="$2"
+      [[ -z "$pkgName" ]] && err noPkg
 
-      targetPath="$(fullPath "$target")" 
-      targetItem="${targetPath##*\/}"
+      [[ ! -d "$REPO/$pkgName" ]] && err noPkgExist "$pkgName"
 
-      tmpPath="${targetPath/$HOME\//}"
+      read -rp "Are you ABSLOUTELY sure you want to ERASE '$pkgName'? (y/N) " eraseAnswer
 
-      # if target doesn't exist, skip it
-      [[ ! -e "$target" ]] && {
-        err noTargetExist "$target"
-        continue
-      }
-      
-      # If target is a link, skip it
-      [[ -h "$target" ]] && {
-        paintMsg fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
-        continue
-      }
+      if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
+        stowDelink "$pkgName"
+        rm -rf "$REPO/$pkgName"
+        paintMsg fg purple "[Erased]" " $pkgName"
+      else
+        echo -e "\nNothing was deleted"
+      fi
+      ;;
 
+    "--list"|"-l") listItems ;;
+    "--help"|"-h") printHelp ;;
+    "--version"|"-v") echo "udots Version ${VERSION}" ;;
 
-      # If it isn't a direct target inside the home directory, create a path inside the package
-      [[ "$tmpPath" != "$targetItem" ]] && newPath="${tmpPath/%\/$targetItem/}"
-      
-      # Skip if the target already exists within the package
-      [[ -e "$REPO/$pkgName/${newPath:-}${targetItem}" ]] && {
-        paintMsg fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
-        continue
-      }
+    "--delink"|"-d")
+      [[ -z "$2" ]] && err noPkg
+      stowDelink "$2" "${@:3}"
+      ;;
 
-      mkdir -p "$REPO/$pkgName/$newPath"
+    "--install"|"-i")
+      [[ -z "$2" ]] && err noPkg
+      stowLink "$2" ${@:3}
+      ;;
 
-      mv "$targetPath" "$REPO/$pkgName/$newPath"
-      [[ $? -eq 0 ]] && paintMsg fg green "[Added]" " '$targetItem'"
+    -*) 
+      err invalid
+      echo ""
+      printHelp
+      ;;
 
+    *)
+      printHelp
+      echo ""
+      err noArg
+      ;;
+  esac
+done
 
-# =========================================
-# DEBUGGING ONLY
-# =========================================
-#      cat <<EODEBUG
-## =========================================
-#Config Directory: $CONFIG
-#Repo Directory: $REPO
-#Package Name: $pkgName
-#Target Path: $targetPath
-#Target Item: $targetItem
-#TMP Path: $tmpPath
-#New Path: $newPath
-#Moved to: $REPO/$pkgName/$newPath
-## =========================================
-#
-#EODEBUG
-# =========================================
-    done
-    
-    stowLink "$pkgName"
-    ;;
-  
-  "--erase"|"-z")
-    [[ $# -gt 2 ]] && err manyArg
-
-    pkgName="$2"
-    [[ -z "$pkgName" ]] && err noPkg
-
-    [[ ! -d "$REPO/$pkgName" ]] && err noPkgExist "$pkgName"
-
-    read -rp "Are you ABSLOUTELY sure you want to ERASE '$pkgName'? (y/N) " eraseAnswer
-
-    if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
-      stowDelink "$pkgName"
-      rm -rf "$REPO/$pkgName"
-      paintMsg fg purple "[Erased]" " $pkgName"
-    else
-      echo -e "\nNothing was deleted"
-    fi
-    ;;
-
-  "--empty"|"-e")
-    [[ $# -gt 2 ]] && err manyArg
-
-    pkgName="$2"
-    [[ -z "$pkgName" ]] && err noPkg
-
-    [[ ! -d "$REPO/$pkgName" ]] && err noPkgExist "$pkgName"
-    ;;
-
-  "--list"|"-l") listItems ;;
-  "--help"|"-h") printHelp ;;
-  "--version"|"-v") echo "udots Version ${VERSION}" ;;
-
-  "--delink"|"-d")
-    [[ -z "$2" ]] && err noPkg
-    stowDelink "$2" "${@:3}"
-    ;;
-
-  "--install"|"-i")
-    [[ -z "$2" ]] && err noPkg
-    stowLink "$2" ${@:3}
-    ;;
-
-  -*) 
-    err invalid
-    echo ""
-    printHelp
-    ;;
-
-  *)
-    printHelp
-    echo ""
-    err noArg
-    ;;
-esac
