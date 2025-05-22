@@ -8,6 +8,26 @@ checkDir () { [[ ! -d "$1" ]] && mkdir -p "$1"; }
 
 
 # =====================================================
+# Slice all arguments into allArgs array
+# =====================================================
+tmpAllArgs_1="${@//--/$'\n'--}"
+tmpAllArgs_2="${tmpAllArgs_1// -/$'\n'-}"
+IFS=$'\n' read -d "" -ra allArgs <<< "${tmpAllArgs_2}"
+
+
+
+# =====================================================
+# Process slice each of sliced arguments into
+# its own array
+# =====================================================
+pArg () {
+  local tmp="$1"
+  IFS=$'\n' read -d "" -ra currentArg <<< "${1// /$'\n'}"
+}
+
+
+
+# =====================================================
 # Print colored string along with optional non-colored
 # =====================================================
 paint () {
