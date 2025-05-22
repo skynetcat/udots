@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 VERSION="0.1.0"
-CONFIG="$HOME/.config/udots"
+CONFIG_DIR="$HOME/.config/udots/udots-config.sh"
+UMACROS_DIR="$HOME/.local/lib/umacros"
 
 # Dependency error
 depError () {
@@ -11,12 +12,40 @@ depError () {
   }
 }
 
-# Source config first then umacros
-source "$CONFIG/config"
-depError "$CONFIG/config"
+source "$UMACROS_DIR"
+depError "$UMACROS_DIR"
 
-source "$HOME/.local/lib/umacros"
-depError "$HOME/.local/lib/umacros"
+source "$CONFIG_DIR"
+depError "$CONFIG_DIR"
+
+
+# =====================================================
+# Parse config changes
+# =====================================================
+for arg in "${allArgs[@]:0:3}"; do
+  # Slice each item from arguments into its own array
+  pArg "$arg"
+  case "${currentArg[0]}" in
+    "--adopt")
+      ADOPT=1
+      ;;
+
+    "--config"|"-c")
+      CONFIG_DIR="${currentArg[1]}"
+      ;;
+
+    "--repo"|"-r")
+      REPO_DIR="${currentArg[1]}"
+      ;;
+  esac
+done
+
+cat <<END
+CONFIG: $CONFIG_DIR
+REPO:   $REPO_DIR
+ADOPT:  $ADOPT
+END
+exit 0
 
 
 
@@ -33,6 +62,12 @@ Usage: udots [CONFIG] [OPTION]
 CONFIG:
   --adopt
     Use stow with --adopt
+  
+  -c, --config
+    Use a custom config file
+
+  -r, --repo
+    Use a custom repo
 
 OPTIONS:
   -i, --install [PKGNAME]
@@ -139,15 +174,24 @@ stowDelink () {
 # Argument Processing
 # =====================================================
 
-# Store all arguments in allArgs array
-IFS=$'\n' read -d "" -ra allArgs <<< "$(sed -E "s/(-|--)/\n\1/g" <<< "${@}")"
-
-# Expand each item into an array
 for arg in "${allArgs[@]}"; do
+  # Slice each item into its own array
   IFS=$'\n' read -d "" -ra currentArg <<< "${arg// /$'\n'}"
   case "$1" in
-    "--adopt"|"-ad")
+    # ======================================
+    # Parse config changes
+    # ======================================
+    "--adopt")
       stowAdopt=1
+      ;;
+
+    "--config"|"-c")
+      CONFIG_DIR="$1"
+      ;;
+    Use a custom config file
+
+    "--repo"|"-r")
+      REPO_DIR="$1"
       ;;
 
     "--add"|"-a")
