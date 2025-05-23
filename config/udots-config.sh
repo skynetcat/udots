@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-# Use colors
-#   0 => No colors
-#   1 => Use colors
-COLOR=1
-
 # Default Repo Directory
 REPO_DIR="$HOME/git/termux-cfg"
 

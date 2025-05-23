@@ -12,6 +12,44 @@ source "$UMACROS_DIR"
 
 
 # =====================================================
+# Error and Colored Messages
+# =====================================================
+listItems () { 
+  echo -e "\nAvailable packages:"
+  
+  tmpAllPkgs=($(ls -d --color=always "$REPO_DIR/"*/))
+  allPkgs=(${tmpAllPkgs[@]//${REPO_DIR//\//\\\/}\//})
+  
+  printf '%s\n' ${allPkgs[@]//\//} |\
+    nl -w2 -s ": "
+}
+
+err () {
+  case "$1" in
+    "noAddPkg")   : "Please specify a package name" ;;
+    "noPkg")      : "Please specify the package name" ;;
+    "noPkgExist") : "Package '$2' does not exist" ;;
+    "noTargetExist") : "'$2': No such file or directory" ;;
+    "noTarget")   : "Please specify at least a file to add to the package" ;;
+    "manyArg")    : "Too many arguments for '$2'" ;;
+    "noArg")      : "No arguments provided" ;;
+    "invalid")    : "Invalid option" ;;
+    "invFile")    : "'$2' is an invalid config file or does not exist" ;;
+    "invDir")     : "'$2' is an invalid directory or does not exist" ;;
+    "noArgAccept"): "There should not be any arguments for '$2'" ;;
+    *)            : "Unknown" ;;
+  esac
+  
+  msg="$_"
+
+  paint fg red "[ERR] $msg"
+  [[ "$1" =~ ^(noPkg|noPkgExist)$ ]] && listItems
+  [[ ! "$1" =~ ^(noTargetExist|invalid)$ ]] && exit 1
+}
+
+
+
+# =====================================================
 # Parse config changes
 # =====================================================
 for (( cfgi = 0; cfgi < ${#allArgs[@]}; cfgi++ )); do
@@ -21,29 +59,23 @@ for (( cfgi = 0; cfgi < ${#allArgs[@]}; cfgi++ )); do
 
   case "${currentArg[0]}" in
     "--config"|"-c")
-      [[ ! -f "${currentArg[1]}" ]] && {
-        echo "[ERR] '${currentArg[1]}' is an invalid config file or does not exist"
-        exit 1
-      }
+      [[ ${#currentArg[@]} -gt 2 ]] && err manyArg "--config"
+      [[ ! -f "${currentArg[1]}" ]] && err invFile "${currentArg[1]}"
 
       ARG_CONFIG_DIR="${currentArg[1]}"
       ;;
 
     "--adopt")
+      [[ ${#currentArg[@]} -gt 1 ]] && err noArgAccept "--adopt"
+
       ARG_ADOPT=1
       ;;
 
-    "--repo"|"-r")
-      [[ ! -d "${currentArg[1]}" ]] && {
-        echo "[ERR] '${currentArg[1]}' is an invalid repo directory or does not exist"
-        exit 1
-      }
+    "--repo")
+      [[ ${#currentArg[@]} -gt 2 ]] && err manyArg "--repo"
+      [[ ! -d "${currentArg[1]}" ]] && err invDir "${currentArg[1]}"
 
       ARG_REPO_DIR="${currentArg[1]}"
-      ;;
-
-    "--no-color"|"-nc")
-      ARG_COLOR=0
       ;;
 
     *)
@@ -66,7 +98,6 @@ source "$CONFIG_DIR"
 
 ADOPT="${ARG_ADOPT:-${ADOPT:-0}}"
 REPO_DIR="${ARG_REPO_DIR:-${REPO_DIR:?Please define a repo in the config}}"
-COLOR="${ARG_COLOR:-${COLOR:-1}}"
 
 
 
@@ -86,16 +117,12 @@ These options MUST be passed before operations and you can pass multiple options
   -c, --config [CONFIG PATH]
     Use a custom config file
   
-  -r, --repo [REPO PATH]
+  --repo [REPO PATH]
     Use a custom repo directory
 
   --adopt
     Use stow with --adopt
   
-  -nc, --no-color
-    Disable colored output
-
-
 OPERATIONS: 
 Pick a SINGLE option from these and it MUST be passed after config options
 
@@ -129,47 +156,6 @@ if [[ "${@: -1}" =~ ^(-h|--help)$ ]] ||\
   printHelp
   exit
 fi
-
-
-
-# =====================================================
-# Error and Colored Messages
-# =====================================================
-paintMsg () {
-  [[ ${COLOR} -eq 0 ]] && { echo "${3}${4}" && return ;}
-  paint "$1" "$2" "$3" "$4"
-}
-
-listItems () { 
-  echo -e "\nAvailable packages:"
-  [[ ${COLOR} -eq 0 ]] && lscolor="never"
-  
-  tmpAllPkgs=($(ls -d --color="${lscolor:-always}" "$REPO_DIR/"*/))
-  allPkgs=(${tmpAllPkgs[@]//${REPO_DIR//\//\\\/}\//})
-  
-  printf '%s\n' ${allPkgs[@]//\//} |\
-    nl -w2 -s ": "
-}
-
-err () {
-  case "$1" in
-    "noAddPkg")   : "Please specify a package name" ;;
-    "noPkg")      : "Please specify the package name" ;;
-    "noPkgExist") : "Package '$2' does not exist" ;;
-    "noTargetExist") : "'$2': No such file or directory" ;;
-    "noTarget")   : "Please specify at least a file to add to the package" ;;
-    "manyArg")    : "Too many arguments" ;;
-    "noArg")      : "No arguments provided" ;;
-    "invalid")    : "Invalid option" ;;
-    *)            : "Unknown" ;;
-  esac
-  
-  msg="$_"
-
-  paintMsg fg red "[ERR] $msg"
-  [[ "$1" =~ ^(noPkg|noPkgExist)$ ]] && listItems
-  [[ ! "$1" =~ ^(noTargetExist|invalid)$ ]] && exit 1
-}
 
 
 
@@ -281,7 +267,7 @@ for arg in "${allArgs[@]}"; do
       ;;
     
     "--erase"|"-z")
-      [[ ${#currentArg[@]} -gt 2 ]] && err manyArg
+      [[ ${#currentArg[@]} -gt 2 ]] && err manyArg "--erase"
 
       pkgName="${currentArg[1]}"
       [[ -z "$pkgName" ]] && err noPkg
