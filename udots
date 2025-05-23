@@ -14,10 +14,10 @@ source "$UMACROS_DIR"
 # =====================================================
 # Parse config changes
 # =====================================================
-for arg in "${allArgs[@]}"; do
+for (( cfgi = 0; cfgi < ${#allArgs[@]}; cfgi++ )); do
 
   # Slice each item from arguments into its own array
-  pArg "$arg"
+  pArg "${allArgs[$cfgi]}"
 
   case "${currentArg[0]}" in
     "--config"|"-c")
@@ -51,6 +51,9 @@ for arg in "${allArgs[@]}"; do
       ;;
   esac
 done
+
+# Removing used config options from arguments
+allArgs="${allArgs[@]:$cfgi}"
 
 
 
@@ -139,10 +142,9 @@ paintMsg () {
 
 listItems () { 
   echo -e "\nAvailable packages:"
-  [[ ${COLOR} -eq 0 ]] && lscolor="never"
-  ls -1 -d "$REPO/"*/ --color="${lscolor:-always}" |\
-    sed "s|$REPO/||g; s|/||g" |\
-    nl -w3 -s " "
+  tmpAllPkgs=($(ls -d "$REPO_DIR/"*/))
+  allPkgs=(${tmpAllPkgs[@]//${REPO_DIR//\//\\\/}\//})
+  printf '%s\n' ${allPkgs[@]//\//} | nl -w2 -s ": "
 }
 
 err () {
@@ -205,14 +207,14 @@ for arg in "${allArgs[@]}"; do
   pArg "$arg"
   case "${currentArg[0]}" in
     "--add"|"-a")
-      pkgName="$2"
+      pkgName="${currentArg[1]}"
       [[ -z "$pkgName" ]] && { err noAddPkg ; }
       
-      targets=("${@:3}")
+      targets=("${currentArg[@]:2}")
       [[ ${#targets[@]} -eq 0 ]] && { err noTarget ; }
         
       # If package dir does not exist within the repo, create it
-      checkDir "$REPO/$pkgName"
+      checkDir "$REPO_DIR/$pkgName"
       [[ $? -eq 0 ]] && paintMsg fg green "[New PKG]" " '$pkgName'"
 
       # =============================
@@ -242,14 +244,14 @@ for arg in "${allArgs[@]}"; do
         [[ "$tmpPath" != "$targetItem" ]] && newPath="${tmpPath/%\/$targetItem/}"
         
         # Skip if the target already exists within the package
-        [[ -e "$REPO/$pkgName/${newPath:-}${targetItem}" ]] && {
+        [[ -e "$REPO_DIR/$pkgName/${newPath:-}${targetItem}" ]] && {
           paintMsg fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
           continue
         }
 
-        mkdir -p "$REPO/$pkgName/$newPath"
+        mkdir -p "$REPO_DIR/$pkgName/$newPath"
 
-        mv "$targetPath" "$REPO/$pkgName/$newPath"
+        mv "$targetPath" "$REPO_DIR/$pkgName/$newPath"
         [[ $? -eq 0 ]] && paintMsg fg green "[Added]" " '$targetItem'"
 
 
@@ -259,13 +261,13 @@ for arg in "${allArgs[@]}"; do
   #      cat <<EODEBUG
   ## =========================================
   #Config Directory: $CONFIG
-  #Repo Directory: $REPO
+  #Repo Directory: $REPO_DIR
   #Package Name: $pkgName
   #Target Path: $targetPath
   #Target Item: $targetItem
   #TMP Path: $tmpPath
   #New Path: $newPath
-  #Moved to: $REPO/$pkgName/$newPath
+  #Moved to: $REPO_DIR/$pkgName/$newPath
   ## =========================================
   #
   #EODEBUG
@@ -276,18 +278,18 @@ for arg in "${allArgs[@]}"; do
       ;;
     
     "--erase"|"-z")
-      [[ $# -gt 2 ]] && err manyArg
+      [[ ${#currentArg[@]} -gt 2 ]] && err manyArg
 
-      pkgName="$2"
+      pkgName="${currentArg[1]}"
       [[ -z "$pkgName" ]] && err noPkg
 
-      [[ ! -d "$REPO/$pkgName" ]] && err noPkgExist "$pkgName"
+      [[ ! -d "$REPO_DIR/$pkgName" ]] && err noPkgExist "$pkgName"
 
       read -rp "Are you ABSLOUTELY sure you want to ERASE '$pkgName'? (y/N) " eraseAnswer
 
       if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
         stowDelink "$pkgName"
-        rm -rf "$REPO/$pkgName"
+        rm -rf "$REPO_DIR/$pkgName"
         paintMsg fg purple "[Erased]" " $pkgName"
       else
         echo -e "\nNothing was deleted"
