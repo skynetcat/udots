@@ -53,7 +53,7 @@ for (( cfgi = 0; cfgi < ${#allArgs[@]}; cfgi++ )); do
 done
 
 # Removing used config options from arguments
-allArgs="${allArgs[@]:$cfgi}"
+allArgs=(${allArgs[@]:$cfgi})
 
 
 
@@ -142,9 +142,13 @@ paintMsg () {
 
 listItems () { 
   echo -e "\nAvailable packages:"
-  tmpAllPkgs=($(ls -d "$REPO_DIR/"*/))
+  [[ ${COLOR} -eq 0 ]] && lscolor="never"
+  
+  tmpAllPkgs=($(ls -d --color="${lscolor:-always}" "$REPO_DIR/"*/))
   allPkgs=(${tmpAllPkgs[@]//${REPO_DIR//\//\\\/}\//})
-  printf '%s\n' ${allPkgs[@]//\//} | nl -w2 -s ": "
+  
+  printf '%s\n' ${allPkgs[@]//\//} |\
+    nl -w2 -s ": "
 }
 
 err () {
@@ -202,7 +206,6 @@ stowDelink () {
 # =====================================================
 # Argument Processing
 # =====================================================
-
 for arg in "${allArgs[@]}"; do
   pArg "$arg"
   case "${currentArg[0]}" in
