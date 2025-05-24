@@ -33,7 +33,7 @@ err () {
     "noTarget")   : "Please specify at least a file to add to the package" ;;
     "manyArg")    : "Too many arguments for '$2'" ;;
     "noArg")      : "No arguments provided" ;;
-    "invalid")    : "Invalid option" ;;
+    "invalid")    : "'$2' is an invalid option" ;;
     "invFile")    : "'$2' is an invalid config file or does not exist" ;;
     "invDir")     : "'$2' is an invalid directory or does not exist" ;;
     "noArgAccept"): "There should not be any arguments for '$2'" ;;
@@ -85,7 +85,7 @@ for (( cfgi = 0; cfgi < ${#allArgs[@]}; cfgi++ )); do
 done
 
 # Removing used config options from arguments
-allArgs=(${allArgs[@]:$cfgi})
+allArgs=("${allArgs[@]:$cfgi}")
 
 
 
@@ -164,10 +164,10 @@ fi
 # =====================================================
 
 stowLink () {
-  stow -d "$REPO" -t "$HOME" "$1" ${@:2}
+  stow -d "$REPO_DIR" -t "$HOME" "$1" ${@:2}
   
   [[ $? -eq 0 ]] && {
-    paintMsg fg cyan "[Linked]" " $1"
+    paint fg cyan "[Linked]" " $1"
     return 0
   }
   
@@ -176,10 +176,10 @@ stowLink () {
 }
 
 stowDelink () {
-  stow -d "$REPO" -t "$HOME" -D "$1" ${@:2}
+  stow -d "$REPO_DIR" -t "$HOME" -D "$1" ${@:2}
   
   [[ $? -eq 0 ]] && {
-    paintMsg fg purple "[Unlinked]" " $1" 
+    paint fg purple "[Unlinked]" " $1" 
     return 0
   }
 
@@ -187,13 +187,15 @@ stowDelink () {
   exit 1
 }
 
-
+[[ -z "${allArgs[@]}" ]] && {
+  err noArg
+}
 
 # =====================================================
 # Argument Processing
 # =====================================================
-for arg in "${allArgs[@]}"; do
-  pArg "$arg"
+for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
+  pArg "${allArgs[$argi]}"
   case "${currentArg[0]}" in
     "--add"|"-a")
       pkgName="${currentArg[1]}"
@@ -290,25 +292,19 @@ for arg in "${allArgs[@]}"; do
     "--version"|"-v") echo "udots Version ${VERSION}" ;;
 
     "--delink"|"-d")
-      [[ -z "$2" ]] && err noPkg
-      stowDelink "$2" "${@:3}"
+      [[ -z "${currentArg[1]}" ]] && err noPkg
+      stowDelink "${currentArg[1]}" ${currentArg[@]:2}
       ;;
 
     "--install"|"-i")
-      [[ -z "$2" ]] && err noPkg
-      stowLink "$2" ${@:3}
+      [[ -z "${currentArg[1]}" ]] && err noPkg
+      stowLink "${currentArg[1]}" ${currentArg[@]:2}
       ;;
 
     -*) 
       printHelp
       echo ""
-      err invalid "$1"
-      ;;
-
-    *)
-      printHelp
-      echo ""
-      err noArg
+      err invalid "${currentArg[0]}"
       ;;
   esac
 done
