@@ -164,7 +164,7 @@ fi
 # =====================================================
 
 stowLink () {
-  stow -d "$REPO_DIR" -t "$HOME" "$1" ${@:2}
+  stow -d "$REPO_DIR" -t "$HOME" "$1"
   
   [[ $? -eq 0 ]] && {
     paint fg cyan "[Linked]" " $1"
@@ -176,7 +176,7 @@ stowLink () {
 }
 
 stowDelink () {
-  stow -d "$REPO_DIR" -t "$HOME" -D "$1" ${@:2}
+  stow -d "$REPO_DIR" -t "$HOME" -D "$1"
   
   [[ $? -eq 0 ]] && {
     paint fg purple "[Unlinked]" " $1" 
@@ -208,7 +208,7 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
         
       # If package dir does not exist within the repo, create it
       checkDir "$REPO_DIR/$pkgName"
-      [[ $? -eq 0 ]] && paintMsg fg green "[New PKG]" " '$pkgName'"
+      [[ $? -eq 0 ]] && paint fg green "[New PKG]" " '$pkgName'"
 
       # =============================
       # Process list of targets
@@ -228,7 +228,7 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
         
         # If target is a link, skip it
         [[ -h "$target" ]] && {
-          paintMsg fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
+          paint fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
           continue
         }
 
@@ -238,14 +238,25 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
         
         # Skip if the target already exists within the package
         [[ -e "$REPO_DIR/$pkgName/${newPath:-}${targetItem}" ]] && {
-          paintMsg fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
+          paint fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
+          
+          echo -e "Do you wish to $(paint fg purple "REPLACE") it?"
+          read -rp "(y/N) " replaceAnswer
+
+          if [[ "$replaceAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
+            mv "$targetPath" "$REPO_DIR/$pkgName/$newPath"
+            [[ $? -eq 0 ]] && paint fg purple "[Replaced]" " '$targetItem'"
+          else
+            echo -e "\nNothing was replaced"
+          fi
+
           continue
         }
 
         mkdir -p "$REPO_DIR/$pkgName/$newPath"
 
         mv "$targetPath" "$REPO_DIR/$pkgName/$newPath"
-        [[ $? -eq 0 ]] && paintMsg fg green "[Added]" " '$targetItem'"
+        [[ $? -eq 0 ]] && paint fg green "[Added]" " '$targetItem'"
 
 
   # =========================================
@@ -266,8 +277,6 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
   #EODEBUG
   # =========================================
       done
-      
-      stowLink "$pkgName"
       ;;
     
     "--erase"|"-z")
@@ -278,8 +287,9 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
 
       [[ ! -d "$REPO_DIR/$pkgName" ]] && err noPkgExist "$pkgName"
 
-      echo -e "Are you ABSLOUTELY sure you want to $(paint fg purple "ERASE") '$pkgName'?"
+      echo -e "Are you ABSLOUTELY sure you want to $(paint fg purple "ERASE") '$pkgName' ?"
       read -rp "(y/N) " eraseAnswer
+      echo ""
 
       if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
         stowDelink "$pkgName"
@@ -296,12 +306,12 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
 
     "--delink"|"-d")
       [[ -z "${currentArg[1]}" ]] && err noPkg
-      stowDelink "${currentArg[1]}" ${currentArg[@]:2}
+      stowDelink "${currentArg[1]}"
       ;;
 
     "--install"|"-i")
       [[ -z "${currentArg[1]}" ]] && err noPkg
-      stowLink "${currentArg[1]}" ${currentArg[@]:2}
+      stowLink "${currentArg[1]}"
       ;;
 
     -*) 
