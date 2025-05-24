@@ -78,6 +78,19 @@ for (( cfgi = 0; cfgi < ${#allArgs[@]}; cfgi++ )); do
       ARG_REPO_DIR="${currentArg[1]}"
       ;;
 
+    "--no-backup"|"-nb")
+      [[ ${#currentArg[@]} -gt 1 ]] && err noArgAccept "--no-backup"
+
+      ARG_BACKUP=0
+      ;;
+
+    "--backup-dir"|"-bd")
+      [[ ${#currentArg[@]} -gt 2 ]] && err manyArg "--backup-dir"
+      [[ ! -d "${currentArg[1]}" ]] && err invDir "${currentArg[1]}"
+
+      ARG_BACKUP_DIR="${currentArg[1]}"
+      ;;
+
     *)
       break
       ;;
@@ -97,7 +110,9 @@ CONFIG_DIR=${ARG_CONFIG_DIR:-${CONFIG_DIR:-$HOME/.config/udots/udots-config.sh}}
 source "$CONFIG_DIR"
 
 ADOPT="${ARG_ADOPT:-${ADOPT:-0}}"
-REPO_DIR="${ARG_REPO_DIR:-${REPO_DIR:?Please define a repo in the config}}"
+REPO_DIR="${ARG_REPO_DIR:-${REPO_DIR:?Please define a repo in the config or by using options}}"
+BACKUP="${ARG_BACKUP:-${BACKUP:-1}}"
+BACKUP_DIR="${ARG_BACKUP_DIR:-${BACKUP_DIR:?Please specify a backup directory in the config or by using options}}"
 
 
 
@@ -112,7 +127,7 @@ Description:
 Usage: udots [CONFIG] [OPERATION]
 
 CONFIG: 
-These options MUST be passed before operations and you can pass multiple options
+These options MUST be passed before operations. You can pass multiple options
 
   -c, --config [CONFIG PATH]
     Use a custom config file
@@ -122,6 +137,12 @@ These options MUST be passed before operations and you can pass multiple options
 
   --adopt
     Use stow with --adopt
+
+  -nb, --no-backup
+    Disable target backup when adding to package
+
+  -bd, --backup-dir
+    Use a custom backup directory
   
 OPERATIONS: 
 Pick a SINGLE option from these and it MUST be passed after config options
@@ -191,11 +212,28 @@ stowDelink () {
   exit 1
 }
 
-[[ -z "${allArgs[@]}" ]] && {
-  err noArg
+move () {
+  local target="$1"
+  local dest="$2"
+  local targetName="$3"
+
+  [[ $BACKUP -eq 1 ]] && {
+    if [[ $BACKUP_DIR == "same" ]]; then
+      cp -r "$target" "${target}.bak"
+    else
+      cp -r "$target" "$BACKUP_DIR/${target}.bak"
+    fi
+  }
+  
+  mv "$target" "$dest"
 }
 
 
+
+# If there are no arguments, throw an error
+[[ -z "${allArgs[@]}" ]] && {
+  err noArg
+}
 
 # =====================================================
 # Argument Processing
@@ -212,7 +250,7 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
         
       # If package dir does not exist within the repo, create it
       checkDir "$REPO_DIR/$pkgName"
-      [[ $? -eq 0 ]] && paint fg green "[New PKG]" " '$pkgName'"
+      paint fg green "[New PKG]" " '$pkgName'"
 
       # =============================
       # Process list of targets
@@ -248,8 +286,8 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
           read -rp "(y/N) " replaceAnswer
 
           if [[ "$replaceAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
-            mv "$targetPath" "$REPO_DIR/$pkgName/$newPath"
-            [[ $? -eq 0 ]] && paint fg purple "[Replaced]" " '$targetItem'"
+            move "$targetPath" "$REPO_DIR/$pkgName/$newPath" "$targetItem"
+            paint fg purple "[Replaced]" " '$targetItem'"
           else
             echo -e "\nNothing was replaced"
           fi
@@ -259,8 +297,8 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
 
         mkdir -p "$REPO_DIR/$pkgName/$newPath"
 
-        mv "$targetPath" "$REPO_DIR/$pkgName/$newPath"
-        [[ $? -eq 0 ]] && paint fg green "[Added]" " '$targetItem'"
+        move "$targetPath" "$REPO_DIR/$pkgName/$newPath" "$targetItem"
+        paint fg green "[Added]" " '$targetItem'"
 
 
   # =========================================
