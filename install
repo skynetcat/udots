@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+[[ ! -f ./lib/umacros ]] && {
+  echo -e "Cannot find umacros.\nPlease make sure you ran this installer from within the script directory"
+}
+
+source ./lib/umacros
+
+INSTALL_DIR="$HOME/.local/bin"
+LIB_DIR="$HOME/.local/lib"
+CONFIG_DIR="$HOME/.config/udots"
+DEF_CONFIG_DIR="$HOME/.local/share/udots"
+
+checkDir "$INSTALL_DIR"
+checkDir "$LIB_DIR"
+checkDir "$CONFIG_DIR"
+checkDir "$DEF_CONFIG_DIR"
