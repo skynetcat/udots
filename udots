@@ -191,6 +191,8 @@ stowDelink () {
   err noArg
 }
 
+
+
 # =====================================================
 # Argument Processing
 # =====================================================
@@ -276,12 +278,13 @@ for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
 
       [[ ! -d "$REPO_DIR/$pkgName" ]] && err noPkgExist "$pkgName"
 
-      read -rp "Are you ABSLOUTELY sure you want to ERASE '$pkgName'? (y/N) " eraseAnswer
+      echo -e "Are you ABSLOUTELY sure you want to $(paint fg purple "ERASE") '$pkgName'?"
+      read -rp "(y/N) " eraseAnswer
 
       if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
         stowDelink "$pkgName"
         rm -rf "$REPO_DIR/$pkgName"
-        paintMsg fg purple "[Erased]" " $pkgName"
+        paint fg purple "[Erased]" " $pkgName"
       else
         echo -e "\nNothing was deleted"
       fi
