@@ -17,8 +17,10 @@ source "$UMACROS_DIR"
 listItems () { 
   echo -e "\nAvailable packages:"
   
-  tmpAllPkgs=($(ls -d --color=always "$REPO_DIR/"*/))
-  allPkgs=(${tmpAllPkgs[@]//${REPO_DIR//\//\\\/}\//})
+  IFS=$'\n' read -d "" -ra tmpAllPkgs <<< "$(ls -d --color=always "$REPO_DIR/"*/)"
+
+
+  IFS=$'\n' read -d "" -ra allPkgs <<< "${tmpAllPkgs[@]//${REPO_DIR//\//\\\/}\//}"
   
   printf '%s\n' ${allPkgs[@]//\//} |\
     nl -w2 -s ": "
@@ -216,7 +218,6 @@ stowDelink () {
 move () {
   local target="$1"
   local dest="$2"
-  local targetName="$3"
 
   [[ $BACKUP -eq 1 ]] && {
     if [[ $BACKUP_DIR == "same" ]]; then
@@ -232,10 +233,11 @@ move () {
 
 
 # If there are no arguments, throw an error
-[[ -z "${allArgs[@]}" ]] && {
+[[ -z "${allArgs[*]}" ]] && {
   err noArg
 }
 
+# If operations are more than 1, throw an error
 [[ ${#allArgs[@]} -gt 1 ]] && {
   err manyOp
 }
@@ -339,7 +341,7 @@ case "${currentArg[0]}" in
 
     if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
       stowDelink "$pkgName"
-      rm -rf "$REPO_DIR/$pkgName"
+      $ERASE_CMD "$REPO_DIR/$pkgName"
       paint fg purple "[Erased]" " $pkgName"
     else
       echo -e "\nNothing was deleted"
