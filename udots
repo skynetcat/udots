@@ -32,6 +32,7 @@ err () {
     "noTargetExist") : "'$2': No such file or directory" ;;
     "noTarget")   : "Please specify at least a file to add to the package" ;;
     "manyArg")    : "Too many arguments for '$2'" ;;
+    "manyOp")    : "Too many arguments. Only a single operation is permitted" ;;
     "noArg")      : "No arguments provided" ;;
     "invalid")    : "'$2' is an invalid option" ;;
     "invFile")    : "'$2' is an invalid config file or does not exist" ;;
@@ -235,132 +236,133 @@ move () {
   err noArg
 }
 
+[[ ${#allArgs[@]} -gt 1 ]] && {
+  err manyOp
+}
+
 # =====================================================
-# Argument Processing
+# Operation Processing
 # =====================================================
-for (( argi = 0 ; argi < ${#allArgs[@]}; argi++ )); do
-  pArg "${allArgs[$argi]}"
-  case "${currentArg[0]}" in
-    "--add"|"-a")
-      pkgName="${currentArg[1]}"
-      [[ -z "$pkgName" ]] && { err noAddPkg ; }
-      
-      targets=("${currentArg[@]:2}")
-      [[ ${#targets[@]} -eq 0 ]] && { err noTarget ; }
-        
-      # If package dir does not exist within the repo, create it
-      checkDir "$REPO_DIR/$pkgName"
-      paint fg green "[New PKG]" " '$pkgName'"
-
-      # =============================
-      # Process list of targets
-      # =============================
-      for target in "${targets[@]}"; do
-
-        targetPath="$(fullPath "$target")" 
-        targetItem="${targetPath##*\/}"
-
-        tmpPath="${targetPath/$HOME\//}"
-
-        # if target doesn't exist, skip it
-        [[ ! -e "$target" ]] && {
-          err noTargetExist "$target"
-          continue
-        }
-        
-        # If target is a link, skip it
-        [[ -h "$target" ]] && {
-          paint fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
-          continue
-        }
-
-
-        # If it isn't a direct target inside the home directory, create a path inside the package
-        [[ "$tmpPath" != "$targetItem" ]] && newPath="${tmpPath/%\/$targetItem/}"
-        
-        # Skip if the target already exists within the package
-        [[ -e "$REPO_DIR/$pkgName/${newPath:-}${targetItem}" ]] && {
-          paint fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
-          
-          echo -e "Do you wish to $(paint fg purple "REPLACE") it?"
-          read -rp "(y/N) " replaceAnswer
-
-          if [[ "$replaceAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
-            move "$targetPath" "$REPO_DIR/$pkgName/$newPath" "$targetItem"
-            paint fg purple "[Replaced]" " '$targetItem'"
-          else
-            echo -e "\nNothing was replaced"
-          fi
-
-          continue
-        }
-
-        mkdir -p "$REPO_DIR/$pkgName/$newPath"
-
-        move "$targetPath" "$REPO_DIR/$pkgName/$newPath" "$targetItem"
-        paint fg green "[Added]" " '$targetItem'"
-
-
-  # =========================================
-  # DEBUGGING ONLY
-  # =========================================
-  #      cat <<EODEBUG
-  ## =========================================
-  #Config Directory: $CONFIG
-  #Repo Directory: $REPO_DIR
-  #Package Name: $pkgName
-  #Target Path: $targetPath
-  #Target Item: $targetItem
-  #TMP Path: $tmpPath
-  #New Path: $newPath
-  #Moved to: $REPO_DIR/$pkgName/$newPath
-  ## =========================================
-  #
-  #EODEBUG
-  # =========================================
-      done
-      ;;
+pArg "${allArgs[0]}"
+case "${currentArg[0]}" in
+  "--add"|"-a")
+    pkgName="${currentArg[1]}"
+    [[ -z "$pkgName" ]] && { err noAddPkg ; }
     
-    "--erase"|"-z")
-      [[ ${#currentArg[@]} -gt 2 ]] && err manyArg "--erase"
+    targets=("${currentArg[@]:2}")
+    [[ ${#targets[@]} -eq 0 ]] && { err noTarget ; }
+      
+    # If package dir does not exist within the repo, create it
+    checkDir "$REPO_DIR/$pkgName"
+    paint fg green "[New PKG]" " '$pkgName'"
 
-      pkgName="${currentArg[1]}"
-      [[ -z "$pkgName" ]] && err noPkg
+    # =============================
+    # Process list of targets
+    # =============================
+    for target in "${targets[@]}"; do
 
-      [[ ! -d "$REPO_DIR/$pkgName" ]] && err noPkgExist "$pkgName"
+      targetPath="$(fullPath "$target")" 
+      targetItem="${targetPath##*\/}"
 
-      echo -e "Are you ABSLOUTELY sure you want to $(paint fg purple "ERASE") '$pkgName' ?"
-      read -rp "(y/N) " eraseAnswer
-      echo ""
+      tmpPath="${targetPath/$HOME\//}"
 
-      if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
-        stowDelink "$pkgName"
-        rm -rf "$REPO_DIR/$pkgName"
-        paint fg purple "[Erased]" " $pkgName"
-      else
-        echo -e "\nNothing was deleted"
-      fi
-      ;;
+      # if target doesn't exist, skip it
+      [[ ! -e "$target" ]] && {
+        err noTargetExist "$target"
+        continue
+      }
+      
+      # If target is a link, skip it
+      [[ -h "$target" ]] && {
+        paint fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
+        continue
+      }
 
-    "--list"|"-l") listItems ;;
-    "--help"|"-h") printHelp ;;
-    "--version"|"-v") echo "udots Version ${VERSION}" ;;
 
-    "--delink"|"-d")
-      [[ -z "${currentArg[1]}" ]] && err noPkg
-      stowDelink "${currentArg[1]}"
-      ;;
+      # If it isn't a direct target inside the home directory, create a path inside the package
+      [[ "$tmpPath" != "$targetItem" ]] && newPath="${tmpPath/%\/$targetItem/}"
+      
+      # Skip if the target already exists within the package
+      [[ -e "$REPO_DIR/$pkgName/${newPath:-}${targetItem}" ]] && {
+        paint fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
+        
+        echo -e "Do you wish to $(paint fg purple "REPLACE") it?"
+        read -rp "(y/N) " replaceAnswer
 
-    "--install"|"-i")
-      [[ -z "${currentArg[1]}" ]] && err noPkg
-      stowLink "${currentArg[1]}"
-      ;;
+        if [[ "$replaceAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
+          move "$targetPath" "$REPO_DIR/$pkgName/$newPath" "$targetItem"
+          paint fg purple "[Replaced]" " '$targetItem'"
+        else
+          echo -e "\nNothing was replaced"
+        fi
 
-    -*) 
-      printHelp
-      echo ""
-      err invalid "${currentArg[0]}"
-      ;;
-  esac
-done
+        continue
+      }
 
+      mkdir -p "$REPO_DIR/$pkgName/$newPath"
+
+      move "$targetPath" "$REPO_DIR/$pkgName/$newPath" "$targetItem"
+      paint fg green "[Added]" " '$targetItem'"
+
+
+# =========================================
+# DEBUGGING ONLY
+# =========================================
+#      cat <<EODEBUG
+## =========================================
+#Config Directory: $CONFIG
+#Repo Directory: $REPO_DIR
+#Package Name: $pkgName
+#Target Path: $targetPath
+#Target Item: $targetItem
+#TMP Path: $tmpPath
+#New Path: $newPath
+#Moved to: $REPO_DIR/$pkgName/$newPath
+## =========================================
+#
+#EODEBUG
+# =========================================
+    done
+    ;;
+  
+  "--erase"|"-z")
+    [[ ${#currentArg[@]} -gt 2 ]] && err manyArg "--erase"
+
+    pkgName="${currentArg[1]}"
+    [[ -z "$pkgName" ]] && err noPkg
+
+    [[ ! -d "$REPO_DIR/$pkgName" ]] && err noPkgExist "$pkgName"
+
+    echo -e "Are you ABSLOUTELY sure you want to $(paint fg purple "ERASE") '$pkgName' ?"
+    read -rp "(y/N) " eraseAnswer
+    echo ""
+
+    if [[ "$eraseAnswer" =~ ^(y|Y|yes|Yes)$ ]]; then
+      stowDelink "$pkgName"
+      rm -rf "$REPO_DIR/$pkgName"
+      paint fg purple "[Erased]" " $pkgName"
+    else
+      echo -e "\nNothing was deleted"
+    fi
+    ;;
+
+  "--list"|"-l") listItems ;;
+  "--help"|"-h") printHelp ;;
+  "--version"|"-v") echo "udots Version ${VERSION}" ;;
+
+  "--delink"|"-d")
+    [[ -z "${currentArg[1]}" ]] && err noPkg
+    stowDelink "${currentArg[1]}"
+    ;;
+
+  "--install"|"-i")
+    [[ -z "${currentArg[1]}" ]] && err noPkg
+    stowLink "${currentArg[1]}"
+    ;;
+
+  -*) 
+    printHelp
+    echo ""
+    err invalid "${currentArg[0]}"
+    ;;
+esac
