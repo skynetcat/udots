@@ -9,17 +9,17 @@ This is a bash script that automates the manual process of making a stow directo
 # Features
 1. Auto-creating subdirectories matching file path.
 2. Basic features:
-    - add to stow directory
-    - link/unlink
-    - list packages in stow directory
+    - Add to stow directory
+    - Link/Unlink
+    - List packages in stow directory
 2. Config file with some useful customizations.
 3. Overriding config file options with passed arguments.
-4. Deleting a package inside the stow diretory.
+4. Deleting a package inside the stow directory.
 5. Auto-backup of files added in their directory or a custom directory.
 6. Colored output
 
 # Why I made this?
-I spent several years using Linux without backing up my config files. Every time I reinstalled or changed distros I would redo all my config from scratch which wasted many hours or even days.
+I spent 5 years using Linux without backing up my config files. Every time I reinstalled or changed distros I would redo all my config from scratch which wasted many hours or even days.
 
 I became frustrated and went on to search for a solution then I found git bare which was nice and did the job but many people online recommended using gnu stow instead, so I went to try it.
 
