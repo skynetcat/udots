@@ -18,6 +18,14 @@ This is a bash script that automates the manual process of making a stow directo
 5. Auto-backup of files added in their directory or a custom directory.
 6. Colored output
 
+# Installation
+```bash
+git clone https://github.com/skynetcat/udots.git
+cd udots
+chmod +x install
+./install
+```
+
 # Why I made this?
 I spent 5 years using Linux without backing up my config files. Every time I reinstalled or changed distros I would redo all my config from scratch which wasted many hours or even days.
 

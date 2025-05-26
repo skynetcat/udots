@@ -28,5 +28,7 @@ checkDir "$CONFIG_DIR"
 checkDir "$DEF_CONFIG_DIR"
 
 add udots "$INSTALL_DIR"
+chmod +x "$INSTALL_DIR/udots"
+
 add config/udots-config.sh "$CONFIG_DIR"
 add lib/umacros "$LIB_DIR"
