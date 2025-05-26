@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Default Repo Directory
-REPO_DIR="$HOME/git/termux-cfg"
+REPO_DIR=""
 
 # Use --adopt with gnu stow.
 #   0 => No --adopt
