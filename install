@@ -1,22 +1,38 @@
 #!/usr/bin/env bash
 
+# Source the common useful functions (aka. umacros)
 [[ ! -f ./lib/umacros ]] && {
   echo -e "Cannot find umacros.\nPlease make sure you ran this installer from within the script directory"
 }
 
 source ./lib/umacros
 
-add () {
-  local target="$1"
-  local targetName="${target//*\//}"
-  local dest="$2"
 
-  [[ ! -f "$dest/$targetName" ]] && { 
-    cp "$target" "$dest"
-    paint fg green "[Installed]" "$targetName"
-  }
+
+# You need a default repo directory supplied as the first argument
+repo="$1"
+
+# Error if no repo supplied
+[[ -z "$repo" ]] && {
+  paint fg red "[ERR] No repo specified. Please insert a valid directory as the first argument."
+  exit 1
 }
 
+# Error if too many arguments
+[[ $# -gt 1 ]] && {
+  paint fg red "[ERR] Too many arguments"
+  exit 1
+}
+
+# Error if supplied repo is not a directory
+[[ ! -d "$repo" ]] && {
+  paint fg red "[ERR] '$1' is not a valid directory"
+  exit 1
+}
+
+
+
+# Makes sure installation directories exist ( or creates them otherwise )
 INSTALL_DIR="$HOME/.local/bin"
 LIB_DIR="$HOME/.local/lib"
 CONFIG_DIR="$HOME/.config/udots"
@@ -27,8 +43,30 @@ checkDir "$LIB_DIR"
 checkDir "$CONFIG_DIR"
 checkDir "$DEF_CONFIG_DIR"
 
+
+
+# Copy files over to installation directories
+add () {
+  local target="$1"
+  local targetName="${target//*\//}"
+  local dest="$2"
+
+  if [[ ! -f "$dest/$targetName" ]]; then
+    cp "$target" "$dest"
+    paint fg green "[Installed]" " $targetName"
+  else
+    paint fg yellow "[Warning]" " '$targetName' is already installed"
+  fi
+}
+
+
 add udots "$INSTALL_DIR"
 chmod +x "$INSTALL_DIR/udots"
 
 add config/udots-config.sh "$CONFIG_DIR"
 add lib/umacros "$LIB_DIR"
+
+
+
+# Add supplied repo to config file
+sed -i "s|^REPO_DIR=*|REPO_DIR=\"$repo\"|" "$CONFIG_DIR/udots-config.sh"
