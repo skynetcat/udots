@@ -6,6 +6,17 @@
 
 source ./lib/umacros
 
+add () {
+  local target="$1"
+  local targetName="${target//*\//}"
+  local dest="$2"
+
+  [[ ! -f "$dest/$targetName" ]] && { 
+    cp "$target" "$dest"
+    paint fg green "[Installed]" "$targetName"
+  }
+}
+
 INSTALL_DIR="$HOME/.local/bin"
 LIB_DIR="$HOME/.local/lib"
 CONFIG_DIR="$HOME/.config/udots"
@@ -15,3 +26,7 @@ checkDir "$INSTALL_DIR"
 checkDir "$LIB_DIR"
 checkDir "$CONFIG_DIR"
 checkDir "$DEF_CONFIG_DIR"
+
+add udots "$INSTALL_DIR"
+add config/udots-config.sh "$CONFIG_DIR"
+add lib/umacros "$LIB_DIR"
