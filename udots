@@ -220,9 +220,17 @@ move () {
 
   [[ $BACKUP -eq 1 ]] && {
     if [[ $BACKUP_DIR == "same" ]]; then
-      cp -r "$target" "${target}.bak"
+      if [[ -e "$target.bak" ]]; then
+        paint fg yellow "[Warning]" " '${target}.bak' exists so it won't be replaced"
+      else
+        cp -r "$target" "${target}.bak"
+      fi
     else
-      cp -r "$target" "$BACKUP_DIR/${target}.bak"
+      if [[ -e "$BACKUP_DIR/${target}.bak" ]]; then
+        paint fg yellow "[Warning]" " '${target}.bak' exists so it won't be replaced"
+      else
+        cp -r "$target" "$BACKUP_DIR/${target}.bak"
+      fi
     fi
   }
   
@@ -275,7 +283,7 @@ case "${currentArg[0]}" in
       
       # If target is a link, skip it
       [[ -h "$target" ]] && {
-        paint fg yellow "[WARNING]" " Cannot add '$targetItem' as it is a symlink."
+        paint fg yellow "[Warning]" " Cannot add '$targetItem' as it is a symlink."
         continue
       }
 
@@ -285,7 +293,7 @@ case "${currentArg[0]}" in
       
       # Skip if the target already exists within the package
       [[ -e "$REPO_DIR/$pkgName/${newPath:-}${targetItem}" ]] && {
-        paint fg yellow "[WARNING]" " '$targetItem' already exists within '$pkgName'"
+        paint fg yellow "[Warning]" " '$targetItem' already exists within '$pkgName'"
         
         echo -e "Do you wish to $(paint fg purple "REPLACE") it?"
         read -rp "(y/N) " replaceAnswer
@@ -304,25 +312,6 @@ case "${currentArg[0]}" in
 
       move "$targetPath" "$REPO_DIR/$pkgName/$newPath" "$targetItem"
       paint fg green "[Added]" " '$targetItem'"
-
-
-# =========================================
-# DEBUGGING ONLY
-# =========================================
-#      cat <<EODEBUG
-## =========================================
-#Config Directory: $CONFIG
-#Repo Directory: $REPO_DIR
-#Package Name: $pkgName
-#Target Path: $targetPath
-#Target Item: $targetItem
-#TMP Path: $tmpPath
-#New Path: $newPath
-#Moved to: $REPO_DIR/$pkgName/$newPath
-## =========================================
-#
-#EODEBUG
-# =========================================
     done
     ;;
   
