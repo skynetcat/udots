@@ -17,13 +17,12 @@ source "$UMACROS_DIR"
 listItems () { 
   echo -e "\nAvailable packages:"
   
-  IFS=$'\n' read -d "" -ra tmpAllPkgs <<< "$(ls -d --color=always "$REPO_DIR/"*/)"
-
-
-  IFS=$'\n' read -d "" -ra allPkgs <<< "${tmpAllPkgs[@]//${REPO_DIR//\//\\\/}\//}"
+  tmpAllPkgs=($(ls -d --color=always "$REPO_DIR/"*/))
+  allPkgs=(${tmpAllPkgs[@]//${REPO_DIR//\//\\\/}\//})
   
-  printf '%s\n' ${allPkgs[@]//\//} |\
-    nl -w2 -s ": "
+  for ((i=0;i<${#allPkgs[@]};i++)); do
+    printf "%2d: %s\n" $((i+1)) "${allPkgs[$i]//\//}"
+  done
 }
 
 err () {
