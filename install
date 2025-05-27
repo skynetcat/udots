@@ -7,8 +7,6 @@
 
 source ./lib/umacros
 
-
-
 # You need a default repo directory supplied as the first argument
 repo="$1"
 
@@ -70,3 +68,17 @@ add lib/umacros "$LIB_DIR"
 
 # Add supplied repo to config file
 sed -i "s|^REPO_DIR=*|REPO_DIR=\"$repo\"|" "$CONFIG_DIR/udots-config.sh"
+
+
+
+# Check if $HOME/.local/bin is in PATH
+while read line; do
+  [[ "$line" =~ "$HOME/.local/bin" ]] && {
+    localExists=1
+    break
+  }
+done <<< "${PATH//:/$'\n'}"
+
+[[ -n "$localExists" ]] && {
+  paint fg yellow "[Notice]" "You don't have ~/.local/bin in your PATH variable. Please make sure you append it to PATH."
+}
