@@ -7,6 +7,15 @@
 
 source ./lib/umacros
 
+
+
+# Error if dependencies do not exist
+if ! command -v stow &>/dev/null; then
+  paint fg red "[ERR] Stow is not installed. Please install it using your package manager before running this script."
+fi
+
+
+
 # You need a default repo directory supplied as the first argument
 repo="$1"
 
@@ -79,6 +88,6 @@ while read line; do
   }
 done <<< "${PATH//:/$'\n'}"
 
-[[ -n "$localExists" ]] && {
-  paint fg yellow "[Notice]" "You don't have ~/.local/bin in your PATH variable. Please make sure you append it to PATH."
+[[ -z "$localExists" ]] && {
+  paint fg yellow "[Notice] You don't have ~/.local/bin in your PATH variable. Please make sure you append it to PATH."
 }
