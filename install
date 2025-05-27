@@ -92,3 +92,5 @@ done <<< "${PATH//:/$'\n'}"
 [[ -z "$localExists" ]] && {
   paint fg yellow "[Notice] You don't have ~/.local/bin in your PATH variable. Please make sure you append it to PATH."
 }
+
+paint fg yellow "[Notice]" " Config file is located in ~/.config/udots/" 
