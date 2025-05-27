@@ -61,6 +61,12 @@ add () {
   if [[ ! -f "$dest/$targetName" ]]; then
     cp "$target" "$dest"
     paint fg green "[Installed]" " $targetName"
+    
+    [[ "$targetName" == "udots-config.sh" ]] && {
+      # Add supplied repo to config file
+      sed -i "s|^REPO_DIR=.*|REPO_DIR=\"$repo\"|" "$CONFIG_DIR/udots-config.sh"
+    }
+
   else
     paint fg yellow "[Warning]" " '$targetName' is already installed"
   fi
@@ -75,14 +81,9 @@ add lib/umacros "$LIB_DIR"
 
 
 
-# Add supplied repo to config file
-sed -i "s|^REPO_DIR=*|REPO_DIR=\"$repo\"|" "$CONFIG_DIR/udots-config.sh"
-
-
-
 # Check if $HOME/.local/bin is in PATH
-while read line; do
-  [[ "$line" =~ "$HOME/.local/bin" ]] && {
+while read -r line; do
+  [[ "$line" == "$HOME/.local/bin" ]] && {
     localExists=1
     break
   }
